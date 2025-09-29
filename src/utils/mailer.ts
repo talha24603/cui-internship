@@ -20,7 +20,7 @@ function getTransporter() {
 }
 
 export async function sendVerificationEmail(email: string, token: string) {
-  const verifyUrl = `${process.env.APP_URL || 'https://cui-internship-git-dev-talhas-projects-59c8907e.vercel.app/'}/api/auth/verify-email?token=${token}`;
+  const verifyUrl = `${process.env.APP_URL || 'https://cui-internship-git-dev-talhas-projects-59c8907e.vercel.app/'}/api/auth/verify-email-link?token=${token}`;
 
   const transporter = getTransporter();
   if (!transporter) {
