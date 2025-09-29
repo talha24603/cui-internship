@@ -6,7 +6,7 @@ const prisma = new PrismaClient();
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
-  const token = searchParams.get("token");
+  const token = searchParams.get("token");  
 
   if (!token) {
     return new Response(`
