@@ -9,7 +9,7 @@ export async function GET() {
       description: "OpenAPI specification for auth endpoints",
     },
     servers: [
-      { url: process.env.APP_URL || "http://localhost:3000", description: "Default" },
+      { url: process.env.APP_URL || "https://cui-internship-git-dev-talhas-projects-59c8907e.vercel.app", description: "Default" },
     ],
     paths: {
       "/api/auth/register": {
