@@ -21,7 +21,7 @@ export async function GET() {
               "application/json": {
                 schema: {
                   type: "object",
-                  required: ["name", "email", "password"],
+                  required: ["name", "email", "password","regNo"],
                   properties: {
                     name: { type: "string" },
                     email: { type: "string", format: "email" },
