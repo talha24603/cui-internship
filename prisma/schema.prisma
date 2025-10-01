@@ -18,6 +18,7 @@ model User {
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
   tokens    RefreshToken[]
+  facultyProfile facultyProfile?
 }
 
 model RefreshToken {
@@ -28,4 +29,21 @@ model RefreshToken {
   expiresAt DateTime
   revoked   Boolean  @default(false)
   user      User     @relation(fields: [userId], references: [id])
+}
+model facultyProfile {
+  id            String   @id @default(uuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id])
+
+  department    String?
+  designation   String?
+  phone         String?
+  office        String?
+  bio           String?
+  avatarUrl     String?
+  qualifications String?
+  expertise     String?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }

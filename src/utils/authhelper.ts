@@ -61,6 +61,19 @@ export const verifyEmailToken = (token: string) => {
     }
     return jwt.verify(token, process.env.JWT_EMAIL_SECRET as string);
 }
+export const signPasswordResetToken = (userId: string) => {
+    if (!process.env.JWT_PASSWORD_RESET_SECRET) {
+        throw new Error('JWT_PASSWORD_RESET_SECRET environment variable is not set');
+    }
+    return jwt.sign({ sub: userId }, process.env.JWT_PASSWORD_RESET_SECRET as string, { expiresIn: '30m' });
+}
+
+export const verifyPasswordResetToken = (token: string) => {
+    if (!process.env.JWT_PASSWORD_RESET_SECRET) {
+        throw new Error('JWT_PASSWORD_RESET_SECRET environment variable is not set');
+    }
+    return jwt.verify(token, process.env.JWT_PASSWORD_RESET_SECRET as string) as JwtPayload;
+}
 export const storeRefreshToken = (userId: string, token: string) => {
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     return prisma.refreshToken.create({
