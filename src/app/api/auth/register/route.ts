@@ -9,8 +9,8 @@ export async function POST(req: Request) {
   try {
     const { name, email, password, regNo } = await req.json();
 
-    if (!name || !email || !password || !regNo) {
-      return NextResponse.json({ message: "All fields are required" }, { status: 400 });
+    if (!name || !email || !password) {
+      return NextResponse.json({ message: "Name, email and password are required" }, { status: 400 });
     }
 
     // const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
