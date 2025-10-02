@@ -11,32 +11,48 @@ export function middleware(req: NextRequest) {
     "/api/docs",
   ];
 
-  if (publicPaths.some((path) => req.nextUrl.pathname.startsWith(path))) {
-    return NextResponse.next();
+  // Preflight (CORS) requests
+  if (req.method === "OPTIONS") {
+    return new NextResponse(null, {
+      status: 204,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      },
+    });
   }
 
-  const authHeader = req.headers.get("authorization") || req.headers.get("Authorization") || "";
-  const hasBearer = authHeader.startsWith("Bearer ");
-
-  if (!hasBearer) {
-    const origin = process.env.ALLOWED_ORIGIN || "";
-    const res = NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    if (origin) {
-      res.headers.set("Access-Control-Allow-Origin", origin);
-      res.headers.set("Vary", "Origin");
-    }
+  // Skip auth check for public paths
+  if (publicPaths.some((path) => req.nextUrl.pathname.startsWith(path))) {
+    const res = NextResponse.next();
+    res.headers.set("Access-Control-Allow-Origin", "*");
     res.headers.set("Access-Control-Allow-Credentials", "true");
-    res.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
-    res.headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
     return res;
   }
 
-  return NextResponse.next();
+  // Check for Bearer token
+  const authHeader = req.headers.get("authorization") || "";
+  if (!authHeader.startsWith("Bearer ")) {
+    return NextResponse.json(
+      { message: "Unauthorized" },
+      {
+        status: 401,
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Credentials": "true",
+        },
+      }
+    );
+  }
+
+  // Authorized request
+  const res = NextResponse.next();
+  res.headers.set("Access-Control-Allow-Origin", "*");
+  res.headers.set("Access-Control-Allow-Credentials", "true");
+  return res;
 }
 
 export const config = {
   matcher: ["/api/:path*"],
 };
-
-
-
