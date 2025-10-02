@@ -14,7 +14,8 @@ export function middleware(req: NextRequest) {
   const origin = req.headers.get("origin") || "";
   const allowedOrigins = [
     process.env.NEXT_PUBLIC_APP_ORIGIN,   // e.g. https://your-frontend.com
-    process.env.ALLOWED_ORIGIN,          // optional extra
+    process.env.ALLOWED_ORIGIN,           // optional extra
+    "https://cui-internship-system.vercel.app", // frontend prod app
   ].filter(Boolean) as string[];
 
   const isAllowedOrigin =
@@ -33,11 +34,12 @@ export function middleware(req: NextRequest) {
 
   // Preflight (CORS) requests
   if (req.method === "OPTIONS") {
+    const requestHeaders = req.headers.get("access-control-request-headers") || "Content-Type, Authorization";
     const res = new NextResponse(null, {
       status: 204,
       headers: {
         "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        "Access-Control-Allow-Headers": requestHeaders,
         // Access-Control-Allow-Origin/Allow-Credentials added via withCors
       },
     });
