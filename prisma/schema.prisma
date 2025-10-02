@@ -18,7 +18,7 @@ model User {
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
   tokens    RefreshToken[]
-  facultyProfile facultyProfile?
+  facultyProfile FacultyProfile?
 }
 
 model RefreshToken {
@@ -30,7 +30,7 @@ model RefreshToken {
   revoked   Boolean  @default(false)
   user      User     @relation(fields: [userId], references: [id])
 }
-model facultyProfile {
+model FacultyProfile {
   id            String   @id @default(uuid())
   userId        String   @unique
   user          User     @relation(fields: [userId], references: [id])
@@ -46,6 +46,7 @@ model facultyProfile {
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  @@map("facultyProfile")
 }
 model Company {
   id          String   @id @default(cuid())
