@@ -13,10 +13,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "All fields are required" }, { status: 400 });
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return NextResponse.json({ message: "Invalid email format" }, { status: 400 });
-    }
+    // const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    // if (!emailRegex.test(email)) {
+    //   return NextResponse.json({ message: "Invalid email format" }, { status: 400 });
+    // }
 
     if (password.length < 6) {
       return NextResponse.json({ message: "Password must be at least 6 characters long" }, { status: 400 });
