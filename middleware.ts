@@ -11,46 +11,56 @@ export function middleware(req: NextRequest) {
     "/api/docs",
   ];
 
+  const origin = req.headers.get("origin") || "";
+  const allowedOrigins = [
+    process.env.NEXT_PUBLIC_APP_ORIGIN,   // e.g. https://your-frontend.com
+    process.env.ALLOWED_ORIGIN,          // optional extra
+  ].filter(Boolean) as string[];
+
+  const isAllowedOrigin =
+    allowedOrigins.length === 0
+      ? true // if you want to allow all in dev, set empty to allow all (careful in prod)
+      : allowedOrigins.includes(origin);
+
+  const withCors = (res: NextResponse) => {
+    if (isAllowedOrigin && origin) {
+      res.headers.set("Access-Control-Allow-Origin", origin);
+      res.headers.set("Vary", "Origin");
+      res.headers.set("Access-Control-Allow-Credentials", "true");
+    }
+    return res;
+  };
+
   // Preflight (CORS) requests
   if (req.method === "OPTIONS") {
-    return new NextResponse(null, {
+    const res = new NextResponse(null, {
       status: 204,
       headers: {
-        "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        // Access-Control-Allow-Origin/Allow-Credentials added via withCors
       },
     });
+    return withCors(res);
   }
 
   // Skip auth check for public paths
   if (publicPaths.some((path) => req.nextUrl.pathname.startsWith(path))) {
-    const res = NextResponse.next();
-    res.headers.set("Access-Control-Allow-Origin", "*");
-    res.headers.set("Access-Control-Allow-Credentials", "true");
-    return res;
+    return withCors(NextResponse.next());
   }
 
   // Check for Bearer token
   const authHeader = req.headers.get("authorization") || "";
   if (!authHeader.startsWith("Bearer ")) {
-    return NextResponse.json(
+    const res = NextResponse.json(
       { message: "Unauthorized" },
-      {
-        status: 401,
-        headers: {
-          "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Credentials": "true",
-        },
-      }
+      { status: 401 }
     );
+    return withCors(res);
   }
 
   // Authorized request
-  const res = NextResponse.next();
-  res.headers.set("Access-Control-Allow-Origin", "*");
-  res.headers.set("Access-Control-Allow-Credentials", "true");
-  return res;
+  return withCors(NextResponse.next());
 }
 
 export const config = {
