@@ -302,6 +302,7 @@ export async function GET() {
       "/api/admin/create-account": {
         post: {
           summary: "Create a new user account (Admin only)",
+          security: [{ bearerAuth: [] }],
           requestBody: {
             required: true,
             content: {
@@ -334,15 +335,19 @@ export async function GET() {
                           id: { type: "string" },
                           email: { type: "string", format: "email" },
                           name: { type: "string" },
+                          role: { type: "string" },
                         },
                       },
                       password: { type: "string", description: "Temporary - plain password for admin" },
+                      createdBy: { type: "string", description: "Admin user ID who created this account" },
                     },
                   },
                 },
               },
             },
-            "400": { description: "Missing required fields" },
+            "400": { description: "Missing required fields or invalid role" },
+            "401": { description: "Authorization header with Bearer token is required" },
+            "403": { description: "Admin access required or unauthorized access" },
             "500": { description: "Internal server error" },
           },
         },
