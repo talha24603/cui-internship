@@ -7,16 +7,16 @@ const prisma = new PrismaClient();
 
 export async function POST(req: Request) {
   try {
-    const { name, email, password } = await req.json();
+    const { name, email, password, regNo } = await req.json();
 
-    if (!name || !email || !password) {
-      return NextResponse.json({ message: "All fields are required" }, { status: 400 });
+    if (!name || !email || !password || !regNo) {
+      return NextResponse.json({ message: "Name, email, password and regNo are required" }, { status: 400 });
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return NextResponse.json({ message: "Invalid email format" }, { status: 400 });
-    }
+    // const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    // if (!emailRegex.test(email)) {
+    //   return NextResponse.json({ message: "Invalid email format" }, { status: 400 });
+    // }
 
     if (password.length < 6) {
       return NextResponse.json({ message: "Password must be at least 6 characters long" }, { status: 400 });
@@ -29,7 +29,7 @@ export async function POST(req: Request) {
 
     const hashedPassword = await hashPassword(password);
     const user = await prisma.user.create({
-      data: { name, email, password: hashedPassword, role: "user" },
+      data: { name, email, password: hashedPassword, role: "STUDENT", regNo },
     });
 
     try {
@@ -46,6 +46,7 @@ export async function POST(req: Request) {
       }, { status: 201 });
     }
   } catch (error) {
+    console.error(error);
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }
