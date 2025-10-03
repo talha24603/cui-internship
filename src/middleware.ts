@@ -62,7 +62,8 @@ import { verifyAccessToken } from "@/utils/authhelper";
 // Whitelisted frontends
 const allowedOrigins = [
   "http://localhost:3000",                   // dev
-  "https://cui-internship-system.vercel.app" // prod
+  "https://cui-internship-system.vercel.app",
+  "https://cui-internship-system-git-dev-zas-projects-7d9cf03b.vercel.app" // prod
 ];
 
 export function middleware(req: NextRequest) {
@@ -73,7 +74,7 @@ export function middleware(req: NextRequest) {
 
   // --- CORS ---
   if (allowedOrigins.includes(origin)) {
-    res.headers.set("Access-Control-Allow-Origin", origin || "https://cui-internship-system.vercel.app");
+    res.headers.set("Access-Control-Allow-Origin", origin );
     res.headers.set("Access-Control-Allow-Credentials", "true");
   }
   res.headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
