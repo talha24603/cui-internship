@@ -16,7 +16,7 @@ export async function POST(req: Request) {
     const valid = await comparePassword(password, user.password);
     if (!valid) return NextResponse.json({ message: "Invalid password" }, { status: 400 });
 
-    const accessToken = signAccessToken({ sub: user.id });
+    const accessToken = signAccessToken({ sub: user.id, role: user.role, name: user.name, email: user.email });
     const refreshToken = signRefreshToken({ sub: user.id });
     await storeRefreshToken(user.id, refreshToken);
 

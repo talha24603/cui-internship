@@ -6,7 +6,7 @@ export async function GET() {
     info: {
       title: "CUI Internship API",
       version: "1.0.0",
-      description: "OpenAPI specification for auth endpoints",
+      description: "OpenAPI specification for CUI Internship API - Auth and Admin endpoints",
     },
     servers: [
       { url: process.env.APP_URL || "https://cui-internship-git-dev-talhas-projects-59c8907e.vercel.app", description: "Default" },
@@ -101,7 +101,7 @@ export async function GET() {
                           email: { type: "string", format: "email" },
                         },
                       },
-                      accessToken: { type: "string" },
+                      accessToken: { type: "string", description: "JWT token containing sub, role, name, and email" },
                     },
                   },
                 },
@@ -166,6 +166,184 @@ export async function GET() {
           responses: {
             "200": { description: "Verification HTML success page", content: { "text/html": {} } },
             "400": { description: "Verification HTML error page", content: { "text/html": {} } },
+          },
+        },
+      },
+      "/api/auth/forgot-password": {
+        post: {
+          summary: "Request password reset email",
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["email"],
+                  properties: {
+                    email: { type: "string", format: "email" },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "Reset email sent (or not sent to prevent enumeration)",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                    },
+                  },
+                },
+              },
+            },
+            "400": { description: "Email is required" },
+            "500": { description: "Internal server error" },
+          },
+        },
+      },
+      "/api/auth/reset-password": {
+        post: {
+          summary: "Reset password using reset token",
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["token", "password"],
+                  properties: {
+                    token: { type: "string" },
+                    password: { type: "string", minLength: 6 },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "Password reset successful",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                    },
+                  },
+                },
+              },
+            },
+            "400": { description: "Invalid token, missing fields, or password too short" },
+            "500": { description: "Internal server error" },
+          },
+        },
+      },
+      "/api/auth/send-verification-email": {
+        post: {
+          summary: "Send verification email to user",
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["email"],
+                  properties: {
+                    email: { type: "string", format: "email" },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "Verification email sent successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                    },
+                  },
+                },
+              },
+            },
+            "400": { description: "Email required or already verified" },
+            "404": { description: "User not found" },
+            "500": { description: "Internal server error" },
+          },
+        },
+      },
+      "/api/auth/generate-passowrd": {
+        get: {
+          summary: "Generate a random password",
+          responses: {
+            "200": {
+              description: "Generated password",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      password: { type: "string" },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      "/api/admin/create-account": {
+        post: {
+          summary: "Create a new user account (Admin only)",
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["email", "name", "password", "role"],
+                  properties: {
+                    email: { type: "string", format: "email" },
+                    name: { type: "string" },
+                    password: { type: "string" },
+                    role: { type: "string", enum: ["ADMIN", "USER", "FACULTY"] },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "User created successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      user: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          email: { type: "string", format: "email" },
+                          name: { type: "string" },
+                        },
+                      },
+                      password: { type: "string", description: "Temporary - plain password for admin" },
+                    },
+                  },
+                },
+              },
+            },
+            "400": { description: "Missing required fields" },
+            "500": { description: "Internal server error" },
           },
         },
       },
