@@ -6,7 +6,7 @@ export async function GET() {
     info: {
       title: "CUI Internship API",
       version: "1.0.0",
-      description: "OpenAPI specification for CUI Internship API - Auth and Admin endpoints",
+      description: "OpenAPI specification for CUI Internship API - Auth, Admin, and Faculty endpoints",
     },
     servers: [
       { url: process.env.APP_URL || "https://cui-internship-git-dev-talhas-projects-59c8907e.vercel.app", description: "Default" },
@@ -348,6 +348,223 @@ export async function GET() {
             "400": { description: "Missing required fields or invalid role" },
             "401": { description: "Authorization header with Bearer token is required" },
             "403": { description: "Admin access required or unauthorized access" },
+            "500": { description: "Internal server error" },
+          },
+        },
+      },
+      "/api/admin/add-company": {
+        post: {
+          summary: "Add a new company (Admin only)",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["name", "email"],
+                  properties: {
+                    name: { type: "string", description: "Company name" },
+                    email: { type: "string", format: "email", description: "Company email address" },
+                    phone: { type: "string", description: "Company phone number" },
+                    address: { type: "string", description: "Company address" },
+                    website: { type: "string", format: "uri", description: "Company website URL" },
+                    industry: { type: "string", description: "Company industry" },
+                    description: { type: "string", description: "Company description" },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "Company added successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      company: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          name: { type: "string" },
+                          email: { type: "string", format: "email" },
+                          phone: { type: "string" },
+                          address: { type: "string" },
+                          website: { type: "string" },
+                          industry: { type: "string" },
+                          description: { type: "string" },
+                          createdAt: { type: "string", format: "date-time" },
+                        },
+                      },
+                      createdBy: { type: "string", description: "Admin user ID who created this company" },
+                    },
+                  },
+                },
+              },
+            },
+            "400": { description: "Missing required fields or invalid email format" },
+            "401": { description: "Authorization header with Bearer token is required" },
+            "403": { description: "Admin access required" },
+            "409": { description: "Company with this email already exists" },
+            "500": { description: "Internal server error" },
+          },
+        },
+      },
+      "/api/faculty": {
+        get: {
+          summary: "Get all faculty profiles (public)",
+          responses: {
+            "200": {
+              description: "Faculty profiles retrieved successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      data: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            name: { type: "string" },
+                            avatarUrl: { type: "string", format: "uri" },
+                            expertise: { type: "string" },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "500": { description: "Internal server error" },
+          },
+        },
+      },
+      "/api/faculty/profile": {
+        get: {
+          summary: "Get faculty profile (Faculty only)",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            "200": {
+              description: "Faculty profile retrieved successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      profile: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          userId: { type: "string" },
+                          department: { type: "string" },
+                          designation: { type: "string" },
+                          phone: { type: "string" },
+                          office: { type: "string" },
+                          bio: { type: "string" },
+                          avatarUrl: { type: "string", format: "uri" },
+                          qualifications: { type: "string" },
+                          expertise: { type: "string" },
+                          createdAt: { type: "string", format: "date-time" },
+                          updatedAt: { type: "string", format: "date-time" },
+                          user: {
+                            type: "object",
+                            properties: {
+                              id: { type: "string" },
+                              name: { type: "string" },
+                              email: { type: "string", format: "email" },
+                              role: { type: "string" },
+                              verified: { type: "boolean" },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "401": { description: "Authorization header with Bearer token is required" },
+            "403": { description: "Faculty access required" },
+            "404": { description: "Faculty profile not found" },
+            "500": { description: "Internal server error" },
+          },
+        },
+        post: {
+          summary: "Create or update faculty profile (Faculty only)",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["department", "designation"],
+                  properties: {
+                    department: { type: "string", description: "Faculty department" },
+                    designation: { type: "string", description: "Faculty designation/position" },
+                    phone: { type: "string", description: "Faculty phone number" },
+                    office: { type: "string", description: "Faculty office location" },
+                    bio: { type: "string", description: "Faculty biography" },
+                    avatarUrl: { type: "string", format: "uri", description: "Faculty avatar image URL" },
+                    qualifications: { type: "string", description: "Faculty qualifications" },
+                    expertise: { type: "string", description: "Faculty areas of expertise" },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "Faculty profile updated successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      profile: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          userId: { type: "string" },
+                          department: { type: "string" },
+                          designation: { type: "string" },
+                          phone: { type: "string" },
+                          office: { type: "string" },
+                          bio: { type: "string" },
+                          avatarUrl: { type: "string", format: "uri" },
+                          qualifications: { type: "string" },
+                          expertise: { type: "string" },
+                          createdAt: { type: "string", format: "date-time" },
+                          updatedAt: { type: "string", format: "date-time" },
+                          user: {
+                            type: "object",
+                            properties: {
+                              id: { type: "string" },
+                              name: { type: "string" },
+                              email: { type: "string", format: "email" },
+                              role: { type: "string" },
+                              verified: { type: "boolean" },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "400": { description: "Missing required fields (department, designation)" },
+            "401": { description: "Authorization header with Bearer token is required" },
+            "403": { description: "Faculty access required" },
+            "404": { description: "User not found" },
+            "409": { description: "Faculty profile already exists for this user" },
             "500": { description: "Internal server error" },
           },
         },

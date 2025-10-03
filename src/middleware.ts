@@ -1,67 +1,10 @@
-// import { NextResponse } from "next/server";
-// import { verifyAccessToken } from "@/utils/authhelper";
-
-// export function middleware(req: Request) {
-//   const res = NextResponse.next();
-
-//   res.headers.set("Access-Control-Allow-Origin", "*");
-//   res.headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-//   res.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
-
-//   if (req.method === "OPTIONS") {
-//     return new NextResponse(null, { status: 204, headers: res.headers });
-//   }
-
-//   // Check if this is an admin route that requires authentication
-//   const url = new URL(req.url);
-//   if (url.pathname.startsWith('/api/admin/')) {
-//     const authHeader = req.headers.get('Authorization');
-    
-//     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-//       return NextResponse.json(
-//         { error: "Authorization header with Bearer token is required" },
-//         { status: 401 }
-//       );
-//     }
-
-//     const token = authHeader.substring(7); // Remove 'Bearer ' prefix
-    
-//     try {
-//       const payload = verifyAccessToken(token);
-      
-//       // Check if user has admin role
-//       if (payload.role !== 'ADMIN') {
-//         return NextResponse.json(
-//           { error: "Admin access required" },
-//           { status: 403 }
-//         );
-//       }
-      
-//       // Add user info to headers for use in the route handler
-//       res.headers.set('x-user-id', payload.sub as string);
-//       res.headers.set('x-user-role', payload.role as string);
-      
-//     } catch (error) {
-//       return NextResponse.json(
-//         { error: "Invalid or expired token" },
-//         { status: 401 }
-//       );
-//     }
-//   }
-
-//   return res;
-// }
-
-// export const config = {
-//   matcher: "/api/:path*",
-// };
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { verifyAccessToken } from "@/utils/authhelper";
 
 // Whitelisted frontends
 const allowedOrigins = [
-  "http://localhost:3000",                   // dev
+  "http://localhost:4200",                   // dev
   "https://cui-internship-system.vercel.app",
   "https://cui-internship-system-git-dev-zas-projects-7d9cf03b.vercel.app" // prod
 ];
@@ -85,8 +28,9 @@ export function middleware(req: NextRequest) {
     return new NextResponse(null, { status: 204, headers: res.headers });
   }
 
-  // --- Admin protection ---
-  if (url.pathname.startsWith("/api/admin/")) {
+  // --- Authentication for protected routes ---
+  if (url.pathname.startsWith("/api/admin/") || 
+      url.pathname.startsWith("/api/faculty/")) {
     const authHeader = req.headers.get("Authorization");
 
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -100,16 +44,11 @@ export function middleware(req: NextRequest) {
     try {
       const payload = verifyAccessToken(token);
 
-      if (payload.role !== "ADMIN") {
-        return NextResponse.json(
-          { error: "Admin access required" },
-          { status: 403 }
-        );
-      }
-
-      // Pass user info for downstream handlers
+      // Pass user info for downstream handlers (let APIs handle role checking)
       res.headers.set("x-user-id", String(payload.sub));
       res.headers.set("x-user-role", payload.role);
+      res.headers.set("x-user-name", payload.name || "");
+      res.headers.set("x-user-email", payload.email || "");
 
     } catch (err) {
       return NextResponse.json(

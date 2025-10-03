@@ -29,7 +29,7 @@ export async function GET(req: Request) {
       <html><body style="font-family: Arial; text-align: center; padding: 50px;">
         <h2>✅ Email Verified Successfully!</h2>
         <p>You can now log in.</p>
-        <a href="${process.env.APP_URL || "/"}/login">Go to Login</a>
+        <a href="${process.env.APP_URL || "https://cui-internship-system.vercel.app/login"}/login">Go to Login</a>
       </body></html>
     `, { headers: { "Content-Type": "text/html" } });
   } catch {
