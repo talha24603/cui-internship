@@ -73,7 +73,7 @@ export function middleware(req: NextRequest) {
 
   // --- CORS ---
   if (allowedOrigins.includes(origin)) {
-    res.headers.set("Access-Control-Allow-Origin", origin);
+    res.headers.set("Access-Control-Allow-Origin", origin || "https://cui-internship-system.vercel.app");
     res.headers.set("Access-Control-Allow-Credentials", "true");
   }
   res.headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
