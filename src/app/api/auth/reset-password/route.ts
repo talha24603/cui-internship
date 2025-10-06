@@ -21,7 +21,8 @@ export async function POST(req: Request) {
     await prisma.user.update({ where: { id: userId }, data: { password: hashed } });
 
     return NextResponse.json({ message: "Password reset successful" });
-  } catch {
+  } catch(error) {
+    console.error("Reset password error:", error);
     return NextResponse.json({ message: "Invalid or expired token" }, { status: 400 });
   }
 }
