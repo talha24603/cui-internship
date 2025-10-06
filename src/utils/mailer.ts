@@ -55,7 +55,7 @@ export async function sendVerificationEmail(email: string, token: string) {
 }
 
 export async function sendPasswordResetEmail(email: string, token: string) {
-  const resetUrl = `${ 'https://cui-internship-system-git-dev-zas-projects-7d9cf03b.vercel.app'}/reset-password?token=${token}`;
+  const resetUrl = `${ process.env.DEV_APP_URL || process.env.APP_URL}/reset-password?token=${token}`;
 
   const transporter = getTransporter();
   if (!transporter) {
