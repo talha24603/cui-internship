@@ -30,7 +30,8 @@ export function middleware(req: NextRequest) {
 
   // --- Authentication for protected routes ---
   if (url.pathname.startsWith("/api/admin/") || 
-      url.pathname.startsWith("/api/faculty/")) {
+      url.pathname.startsWith("/api/faculty/") ||
+      url.pathname.startsWith("/api/student/")) {
     const authHeader = req.headers.get("Authorization");
 
     if (!authHeader || !authHeader.startsWith("Bearer ")) {

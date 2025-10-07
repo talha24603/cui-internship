@@ -5,15 +5,20 @@ export async function GET() {
     openapi: "3.0.3",
     info: {
       title: "CUI Internship API",
-      version: "1.0.0",
-      description: "OpenAPI specification for CUI Internship API - Auth, Admin, and Faculty endpoints",
+      version: "1.1.0",
+      description: "OpenAPI specification for CUI Internship API - Auth, Admin, Faculty, and Student endpoints. All protected routes use middleware-based authentication with Bearer tokens.",
     },
     servers: [
       { url: process.env.APP_URL || "https://cui-internship-git-dev-talhas-projects-59c8907e.vercel.app", description: "Default" },
     ],
+    externalDocs: {
+      description: "Authentication Flow",
+      url: "#authentication",
+    },
     paths: {
       "/api/auth/register": {
         post: {
+          tags: ["Authentication"],
           summary: "Register a new user",
           requestBody: {
             required: true,
@@ -62,6 +67,7 @@ export async function GET() {
       },
       "/api/auth/login": {
         post: {
+          tags: ["Authentication"],
           summary: "Login a user",
           requestBody: {
             required: true,
@@ -114,6 +120,7 @@ export async function GET() {
       },
       "/api/auth/refresh-token": {
         get: {
+          tags: ["Authentication"],
           summary: "Get a new access token using refresh token cookie",
           responses: {
             "200": {
@@ -133,6 +140,7 @@ export async function GET() {
       },
       "/api/auth/verify-email": {
         post: {
+          tags: ["Authentication"],
           summary: "Verify email using token (JSON body)",
           requestBody: {
             required: true,
@@ -154,6 +162,7 @@ export async function GET() {
       },
       "/api/auth/verify-email-link": {
         get: {
+          tags: ["Authentication"],
           summary: "Verify email using link (HTML response)",
           parameters: [
             {
@@ -171,6 +180,7 @@ export async function GET() {
       },
       "/api/auth/forgot-password": {
         post: {
+          tags: ["Authentication"],
           summary: "Request password reset email",
           requestBody: {
             required: true,
@@ -207,6 +217,7 @@ export async function GET() {
       },
       "/api/auth/reset-password": {
         post: {
+          tags: ["Authentication"],
           summary: "Reset password using reset token",
           requestBody: {
             required: true,
@@ -244,6 +255,7 @@ export async function GET() {
       },
       "/api/auth/send-verification-email": {
         post: {
+          tags: ["Authentication"],
           summary: "Send verification email to user",
           requestBody: {
             required: true,
@@ -281,6 +293,7 @@ export async function GET() {
       },
       "/api/auth/generate-passowrd": {
         get: {
+          tags: ["Authentication"],
           summary: "Generate a random password",
           responses: {
             "200": {
@@ -301,6 +314,7 @@ export async function GET() {
       },
       "/api/admin/create-account": {
         post: {
+          tags: ["Admin"],
           summary: "Create a new user account (Admin only)",
           security: [{ bearerAuth: [] }],
           requestBody: {
@@ -354,6 +368,7 @@ export async function GET() {
       },
       "/api/admin/add-company": {
         post: {
+          tags: ["Admin"],
           summary: "Add a new company (Admin only)",
           security: [{ bearerAuth: [] }],
           requestBody: {
@@ -415,6 +430,7 @@ export async function GET() {
       },
       "/api/faculty": {
         get: {
+          tags: ["Faculty"],
           summary: "Get all faculty profiles (public)",
           responses: {
             "200": {
@@ -446,6 +462,7 @@ export async function GET() {
       },
       "/api/faculty/profile": {
         get: {
+          tags: ["Faculty"],
           summary: "Get faculty profile (Faculty only)",
           security: [{ bearerAuth: [] }],
           responses: {
@@ -496,6 +513,7 @@ export async function GET() {
           },
         },
         post: {
+          tags: ["Faculty"],
           summary: "Create or update faculty profile (Faculty only)",
           security: [{ bearerAuth: [] }],
           requestBody: {
@@ -569,6 +587,152 @@ export async function GET() {
           },
         },
       },
+      "/api/student/create-internship": {
+        post: {
+          tags: ["Student"],
+          summary: "Create a new internship request (Student only)",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["type"],
+                  properties: {
+                    type: { 
+                      type: "string", 
+                      enum: ["ONSITE", "REMOTE", "FIVERR"],
+                      description: "Type of internship"
+                    },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "201": {
+              description: "Internship created successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      internship: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          studentId: { type: "string" },
+                          type: { type: "string", enum: ["ONSITE", "REMOTE", "FIVERR"] },
+                          status: { type: "string", enum: ["PENDING", "APPROVED", "REJECTED", "COMPLETED"] },
+                          createdAt: { type: "string", format: "date-time" },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "400": { description: "Invalid or missing internship type" },
+            "401": { description: "User information not found or invalid token" },
+            "403": { description: "Only students can create internships" },
+            "409": { description: "You already have an active internship request" },
+            "500": { description: "Internal server error" },
+          },
+        },
+      },
+      "/api/student/request-to-add-company": {
+        post: {
+          tags: ["Student"],
+          summary: "Request to add a new company (Student only)",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["name", "email"],
+                  properties: {
+                    name: { type: "string", description: "Company name" },
+                    email: { type: "string", format: "email", description: "Company email address" },
+                    phone: { type: "string", description: "Company phone number" },
+                    address: { type: "string", description: "Company address" },
+                    website: { type: "string", format: "uri", description: "Company website URL" },
+                    industry: { type: "string", description: "Company industry" },
+                    description: { type: "string", description: "Company description" },
+                    justification: { type: "string", description: "Why this company should be added" },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "201": {
+              description: "Company request created successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      companyRequest: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          studentId: { type: "string" },
+                          name: { type: "string" },
+                          email: { type: "string", format: "email" },
+                          phone: { type: "string" },
+                          address: { type: "string" },
+                          website: { type: "string" },
+                          industry: { type: "string" },
+                          description: { type: "string" },
+                          justification: { type: "string" },
+                          status: { type: "string", enum: ["PENDING", "APPROVED", "REJECTED"] },
+                          createdAt: { type: "string", format: "date-time" },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "400": { description: "Missing required fields or invalid email format" },
+            "401": { description: "User information not found or invalid token" },
+            "403": { description: "Only students can request to add companies" },
+            "409": { description: "Company with this email already exists or already requested" },
+            "500": { description: "Internal server error" },
+          },
+        },
+      },
+      "/api/student/appex-a": {
+        get: {
+          tags: ["Student"],
+          summary: "Get student AppEx-A information (Student only)",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            "200": {
+              description: "AppEx-A information retrieved successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      data: { type: "object" },
+                    },
+                  },
+                },
+              },
+            },
+            "401": { description: "User information not found or invalid token" },
+            "403": { description: "Only students can access AppEx-A information" },
+            "500": { description: "Internal server error" },
+          },
+        },
+      },
     },
     components: {
       securitySchemes: {
@@ -576,9 +740,56 @@ export async function GET() {
           type: "http",
           scheme: "bearer",
           bearerFormat: "JWT",
+          description: "JWT token obtained from /api/auth/login. Middleware automatically validates tokens for protected routes and passes user info via headers (x-user-id, x-user-role, x-user-name, x-user-email).",
+        },
+      },
+      responses: {
+        UnauthorizedError: {
+          description: "Authentication information is missing or invalid",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  error: { type: "string" },
+                },
+              },
+            },
+          },
+        },
+        ForbiddenError: {
+          description: "Access forbidden - insufficient permissions",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  error: { type: "string" },
+                },
+              },
+            },
+          },
         },
       },
     },
+    tags: [
+      {
+        name: "Authentication",
+        description: "User authentication and authorization endpoints",
+      },
+      {
+        name: "Admin",
+        description: "Administrative functions - requires ADMIN role",
+      },
+      {
+        name: "Faculty",
+        description: "Faculty-specific functions - requires FACULTY role",
+      },
+      {
+        name: "Student",
+        description: "Student-specific functions - requires STUDENT role",
+      },
+    ],
   } as const;
 
   return NextResponse.json(openapi);
