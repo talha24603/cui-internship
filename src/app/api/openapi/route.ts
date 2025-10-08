@@ -710,28 +710,316 @@ export async function GET() {
       "/api/student/appex-a": {
         get: {
           tags: ["Student"],
-          summary: "Get student AppEx-A information (Student only)",
+          summary: "Get student's AppEx-A (Internship Approval) details",
           security: [{ bearerAuth: [] }],
           responses: {
             "200": {
-              description: "AppEx-A information retrieved successfully",
+              description: "AppEx-A retrieved successfully",
               content: {
                 "application/json": {
                   schema: {
                     type: "object",
                     properties: {
                       message: { type: "string" },
-                      data: { type: "object" },
-                    },
-                  },
-                },
-              },
+                      internship: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          type: { type: "string", enum: ["ONSITE", "REMOTE", "FIVERR"] },
+                          status: { type: "string", enum: ["PENDING", "APPROVED", "REJECTED", "COMPLETED"] },
+                          student: {
+                            type: "object",
+                            properties: {
+                              id: { type: "string" },
+                              name: { type: "string" },
+                              email: { type: "string" },
+                              regNo: { type: "string" }
+                            }
+                          },
+                          appexA: {
+                            type: "object",
+                            properties: {
+                              id: { type: "string" },
+                              organization: { type: "string" },
+                              address: { type: "string" },
+                              industrySector: { type: "string" },
+                              contactName: { type: "string" },
+                              contactDesignation: { type: "string" },
+                              contactPhone: { type: "string" },
+                              contactEmail: { type: "string" },
+                              internshipField: { type: "string" },
+                              internshipLocation: { type: "string" },
+                              startDate: { type: "string", format: "date-time" },
+                              endDate: { type: "string", format: "date-time" },
+                              workingDays: { type: "string" },
+                              workingHours: { type: "string" },
+                              status: { type: "string", enum: ["pending", "approved", "rejected"] }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
             },
             "401": { description: "User information not found or invalid token" },
             "403": { description: "Only students can access AppEx-A information" },
-            "500": { description: "Internal server error" },
-          },
+            "404": { description: "No active internship found" },
+            "500": { description: "Internal server error" }
+          }
         },
+        post: {
+          tags: ["Student"],
+          summary: "Submit AppEx-A (Internship Approval) form",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: [
+                    "organization", "address", "industrySector", "contactName",
+                    "contactDesignation", "contactPhone", "contactEmail",
+                    "internshipField", "internshipLocation", "startDate", "endDate",
+                    "workingDays", "workingHours"
+                  ],
+                  properties: {
+                    organization: { type: "string", description: "Organization name" },
+                    address: { type: "string", description: "Organization address" },
+                    industrySector: { type: "string", description: "Industry sector" },
+                    contactName: { type: "string", description: "Contact person name" },
+                    contactDesignation: { type: "string", description: "Contact person designation" },
+                    contactPhone: { type: "string", description: "Contact phone number" },
+                    contactEmail: { type: "string", format: "email", description: "Contact email" },
+                    internshipField: { type: "string", description: "Field of internship" },
+                    internshipLocation: { type: "string", description: "Internship location" },
+                    startDate: { type: "string", format: "date", description: "Internship start date" },
+                    endDate: { type: "string", format: "date", description: "Internship end date" },
+                    workingDays: { type: "string", description: "Working days per week" },
+                    workingHours: { type: "string", description: "Working hours per day" }
+                  }
+                }
+              }
+            }
+          },
+          responses: {
+            "201": {
+              description: "AppEx-A submitted successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      appexA: { type: "object" }
+                    }
+                  }
+                }
+              }
+            },
+            "400": { description: "Missing required fields or invalid date format" },
+            "401": { description: "User information not found or invalid token" },
+            "403": { description: "Only students can submit AppEx-A" },
+            "404": { description: "No pending internship found" },
+            "409": { description: "AppEx-A already exists for this internship" },
+            "500": { description: "Internal server error" }
+          }
+        },
+        put: {
+          tags: ["Student"],
+          summary: "Update AppEx-A (Internship Approval) form",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    organization: { type: "string" },
+                    address: { type: "string" },
+                    industrySector: { type: "string" },
+                    contactName: { type: "string" },
+                    contactDesignation: { type: "string" },
+                    contactPhone: { type: "string" },
+                    contactEmail: { type: "string", format: "email" },
+                    internshipField: { type: "string" },
+                    internshipLocation: { type: "string" },
+                    startDate: { type: "string", format: "date" },
+                    endDate: { type: "string", format: "date" },
+                    workingDays: { type: "string" },
+                    workingHours: { type: "string" }
+                  }
+                }
+              }
+            }
+          },
+          responses: {
+            "200": {
+              description: "AppEx-A updated successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      appexA: { type: "object" }
+                    }
+                  }
+                }
+              }
+            },
+            "400": { description: "Invalid date format or dates" },
+            "401": { description: "User information not found or invalid token" },
+            "403": { description: "Only students can update AppEx-A or form already processed" },
+            "404": { description: "No pending internship or AppEx-A not found" },
+            "500": { description: "Internal server error" }
+          }
+        }
+      },
+      "/api/faculty/appex-a-approval": {
+        get: {
+          tags: ["Faculty"],
+          summary: "Get all AppEx-A submissions for approval (Faculty/Admin only)",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "status",
+              in: "query",
+              schema: { type: "string", enum: ["pending", "approved", "rejected", "all"] },
+              description: "Filter by approval status"
+            },
+            {
+              name: "page",
+              in: "query",
+              schema: { type: "integer", minimum: 1 },
+              description: "Page number for pagination"
+            },
+            {
+              name: "limit",
+              in: "query",
+              schema: { type: "integer", minimum: 1, maximum: 100 },
+              description: "Number of items per page"
+            }
+          ],
+          responses: {
+            "200": {
+              description: "AppEx-A submissions retrieved successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      data: { type: "array", items: { type: "object" } },
+                      pagination: {
+                        type: "object",
+                        properties: {
+                          page: { type: "integer" },
+                          limit: { type: "integer" },
+                          total: { type: "integer" },
+                          pages: { type: "integer" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "401": { description: "User information not found or invalid token" },
+            "403": { description: "Only faculty and admin can access AppEx-A approvals" },
+            "500": { description: "Internal server error" }
+          }
+        },
+        patch: {
+          tags: ["Faculty"],
+          summary: "Approve or reject AppEx-A submission (Faculty/Admin only)",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["appexAId", "status"],
+                  properties: {
+                    appexAId: { type: "string", description: "AppEx-A submission ID" },
+                    status: { type: "string", enum: ["approved", "rejected"], description: "Approval status" },
+                    comments: { type: "string", description: "Optional comments for approval/rejection" }
+                  }
+                }
+              }
+            }
+          },
+          responses: {
+            "200": {
+              description: "AppEx-A processed successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      appexA: { type: "object" },
+                      internship: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          student: { type: "object" },
+                          status: { type: "string" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "400": { description: "Missing required fields or invalid status" },
+            "401": { description: "User information not found or invalid token" },
+            "403": { description: "Only faculty and admin can approve/reject AppEx-A" },
+            "404": { description: "AppEx-A submission not found" },
+            "409": { description: "AppEx-A has already been processed" },
+            "500": { description: "Internal server error" }
+          }
+        }
+      },
+      "/api/faculty/appex-a-approval/{id}": {
+        get: {
+          tags: ["Faculty"],
+          summary: "Get specific AppEx-A submission details (Faculty/Admin only)",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+              description: "AppEx-A submission ID"
+            }
+          ],
+          responses: {
+            "200": {
+              description: "AppEx-A details retrieved successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      appexA: { type: "object" }
+                    }
+                  }
+                }
+              }
+            },
+            "401": { description: "User information not found or invalid token" },
+            "403": { description: "Only faculty and admin can access AppEx-A details" },
+            "404": { description: "AppEx-A submission not found" },
+            "500": { description: "Internal server error" }
+          }
+        }
       },
     },
     components: {
