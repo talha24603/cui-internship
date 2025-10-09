@@ -9,7 +9,7 @@ export async function GET() {
       description: "OpenAPI specification for CUI Internship API - Auth, Admin, Faculty, and Student endpoints. All protected routes use middleware-based authentication with Bearer tokens.",
     },
     servers: [
-      { url: process.env.APP_URL || "https://cui-internship-git-dev-talhas-projects-59c8907e.vercel.app", description: "Default" },
+      { url: "https://cui-internship-git-dev-talhas-projects-59c8907e.vercel.app", description: "Default" },
     ],
     externalDocs: {
       description: "Authentication Flow",
