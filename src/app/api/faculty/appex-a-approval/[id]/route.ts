@@ -2,8 +2,10 @@ import { NextResponse } from "next/server";
 import prisma from "@/utils/prisma";
 
 // GET /api/faculty/appex-a-approval/{id} - Get specific AppEx A submission details
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
+    
     // Get user info from middleware headers (already verified)
     const userId = req.headers.get('x-user-id');
     const userRole = req.headers.get('x-user-role');
@@ -17,7 +19,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     }
 
     const appexA = await prisma.internshipApproval.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         internship: {
           include: {
