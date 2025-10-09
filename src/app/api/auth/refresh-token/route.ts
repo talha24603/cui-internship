@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { verifyRefreshToken, signAccessToken } from "@/utils/authhelper";
+import { verifyRefreshToken, signAccessToken, getValidRefreshToken } from "@/utils/authhelper";
 
 export async function GET(req: Request) {
   try {
@@ -13,12 +13,33 @@ export async function GET(req: Request) {
       return NextResponse.json({ message: "Refresh token not provided" }, { status: 401 });
     }
 
+    // Verify token signature and expiration
     const payload = verifyRefreshToken(refreshToken);
-    const newAccessToken = signAccessToken({ sub: payload.sub });
+    
+    // Check if token exists and is valid in database
+    const storedToken = await getValidRefreshToken(refreshToken);
+    if (!storedToken) {
+      return NextResponse.json({ 
+        message: "Invalid or expired refresh token" 
+      }, { status: 401 });
+    }
 
-    return NextResponse.json({ accessToken: newAccessToken });
+    // Generate new access token with user role
+    const newAccessToken = signAccessToken({ 
+      sub: payload.sub,
+      role: storedToken.user.role,
+      name: storedToken.user.name,
+      email: storedToken.user.email
+    });
+
+    return NextResponse.json({ 
+      accessToken: newAccessToken,
+      message: "Token refreshed successfully"
+    });
   } catch (error) {
     console.error("Refresh token error:", error);
-    return NextResponse.json({ message: "Invalid refresh token" }, { status: 401 });
+    return NextResponse.json({ 
+      message: "Invalid refresh token" 
+    }, { status: 401 });
   }
 }

@@ -102,9 +102,10 @@ export async function GET() {
                       user: {
                         type: "object",
                         properties: {
-                          id: { type: "string" },
-                          name: { type: "string" },
-                          email: { type: "string", format: "email" },
+                          id: { type: "string", description: "User ID" },
+                          name: { type: "string", description: "User's full name" },
+                          email: { type: "string", format: "email", description: "User's email address" },
+                          role: { type: "string", enum: ["STUDENT", "FACULTY", "SITE_SUPERVISOR", "ADMIN"], description: "User's role in the system" },
                         },
                       },
                       accessToken: { type: "string", description: "JWT token containing sub, role, name, and email" },
@@ -129,12 +130,102 @@ export async function GET() {
                 "application/json": {
                   schema: {
                     type: "object",
-                    properties: { accessToken: { type: "string" } },
+                    properties: { 
+                      accessToken: { type: "string" },
+                      message: { type: "string" }
+                    },
                   },
                 },
               },
             },
             "401": { description: "Missing or invalid refresh token" },
+          },
+        },
+      },
+      "/api/auth/logout": {
+        post: {
+          tags: ["Authentication"],
+          summary: "Logout current session",
+          description: "Revokes the current refresh token and clears session cookie",
+          responses: {
+            "200": {
+              description: "Logged out successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: { 
+                      message: { type: "string" }
+                    },
+                  },
+                },
+              },
+            },
+            "500": { description: "Internal server error" },
+          },
+        },
+      },
+      "/api/auth/logout-all": {
+        post: {
+          tags: ["Authentication"],
+          summary: "Logout from all devices",
+          description: "Revokes all refresh tokens for the authenticated user",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            "200": {
+              description: "Logged out from all devices successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: { 
+                      message: { type: "string" },
+                      revokedCount: { type: "integer" }
+                    },
+                  },
+                },
+              },
+            },
+            "401": { description: "User not authenticated" },
+            "500": { description: "Internal server error" },
+          },
+        },
+      },
+      "/api/auth/sessions": {
+        get: {
+          tags: ["Authentication"],
+          summary: "Get active sessions",
+          description: "Retrieve all active sessions for the authenticated user",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            "200": {
+              description: "Active sessions retrieved successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      sessions: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            id: { type: "string" },
+                            createdAt: { type: "string", format: "date-time" },
+                            expiresAt: { type: "string", format: "date-time" },
+                            isCurrent: { type: "boolean" },
+                            tokenPreview: { type: "string" }
+                          }
+                        }
+                      },
+                      totalActive: { type: "integer" }
+                    },
+                  },
+                },
+              },
+            },
+            "401": { description: "User not authenticated" },
+            "500": { description: "Internal server error" },
           },
         },
       },

@@ -1,3 +1,5 @@
+export const runtime = "nodejs";
+
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { verifyAccessToken } from "@/utils/authhelper";
@@ -53,7 +55,7 @@ export function middleware(req: NextRequest) {
 
     } catch (err) {
       return NextResponse.json(
-        { error: "Invalid or expired token" },
+        { error: "Invalid or expired token " + err },
         { status: 401 }
       );
     }
