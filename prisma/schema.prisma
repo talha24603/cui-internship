@@ -42,6 +42,8 @@ model User {
   facultyInternships Internship[] @relation("FacultyInternships")
   siteInternships Internship[] @relation("SiteInternships")
   evaluations Evaluation[]
+  companyRequests CompanyRequest[]
+  reviewedCompanyRequests CompanyRequest[] @relation("CompanyRequestReviewer")
 }
 
 model RefreshToken {
@@ -83,6 +85,27 @@ model Company {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
+
+model CompanyRequest {
+  id          String   @id @default(uuid())
+  name        String
+  email       String
+  phone       String?
+  address     String?
+  website     String?
+  industry    String?
+  description String?
+  reason      String?  // Why the student wants this company added
+  status      String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  requestedBy User     @relation(fields: [requestedById], references: [id])
+  requestedById String
+  reviewedBy  User?    @relation("CompanyRequestReviewer", fields: [reviewedById], references: [id])
+  reviewedById String?
+  reviewedAt  DateTime?
+  notes       String?  // Admin notes for approval/rejection
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
 model Internship {
   id            String   @id @default(uuid())
   student       User     @relation("StudentInternships", fields: [studentId], references: [id])
@@ -93,8 +116,8 @@ model Internship {
   siteId        String?
 
   type          InternshipType
-  startDate     DateTime        // will be set after Annex A is approved
-  endDate       DateTime        // will be set after Annex A is approved
+  startDate     DateTime?       // will be set after Annex A is approved
+  endDate       DateTime?       // will be set after Annex A is approved
   status        InternshipStatus
 
   approvals     InternshipApproval?

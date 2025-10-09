@@ -5,15 +5,20 @@ export async function GET() {
     openapi: "3.0.3",
     info: {
       title: "CUI Internship API",
-      version: "1.0.0",
-      description: "OpenAPI specification for CUI Internship API - Auth, Admin, and Faculty endpoints",
+      version: "1.1.0",
+      description: "OpenAPI specification for CUI Internship API - Auth, Admin, Faculty, and Student endpoints. All protected routes use middleware-based authentication with Bearer tokens.",
     },
     servers: [
-      { url: process.env.APP_URL || "https://cui-internship-git-dev-talhas-projects-59c8907e.vercel.app", description: "Default" },
+      { url: "https://cui-internship-git-dev-talhas-projects-59c8907e.vercel.app", description: "Default" },
     ],
+    externalDocs: {
+      description: "Authentication Flow",
+      url: "#authentication",
+    },
     paths: {
       "/api/auth/register": {
         post: {
+          tags: ["Authentication"],
           summary: "Register a new user",
           requestBody: {
             required: true,
@@ -62,6 +67,7 @@ export async function GET() {
       },
       "/api/auth/login": {
         post: {
+          tags: ["Authentication"],
           summary: "Login a user",
           requestBody: {
             required: true,
@@ -96,9 +102,10 @@ export async function GET() {
                       user: {
                         type: "object",
                         properties: {
-                          id: { type: "string" },
-                          name: { type: "string" },
-                          email: { type: "string", format: "email" },
+                          id: { type: "string", description: "User ID" },
+                          name: { type: "string", description: "User's full name" },
+                          email: { type: "string", format: "email", description: "User's email address" },
+                          role: { type: "string", enum: ["STUDENT", "FACULTY", "SITE_SUPERVISOR", "ADMIN"], description: "User's role in the system" },
                         },
                       },
                       accessToken: { type: "string", description: "JWT token containing sub, role, name, and email" },
@@ -114,6 +121,7 @@ export async function GET() {
       },
       "/api/auth/refresh-token": {
         get: {
+          tags: ["Authentication"],
           summary: "Get a new access token using refresh token cookie",
           responses: {
             "200": {
@@ -122,7 +130,10 @@ export async function GET() {
                 "application/json": {
                   schema: {
                     type: "object",
-                    properties: { accessToken: { type: "string" } },
+                    properties: { 
+                      accessToken: { type: "string" },
+                      message: { type: "string" }
+                    },
                   },
                 },
               },
@@ -131,8 +142,96 @@ export async function GET() {
           },
         },
       },
+      "/api/auth/logout": {
+        post: {
+          tags: ["Authentication"],
+          summary: "Logout current session",
+          description: "Revokes the current refresh token and clears session cookie",
+          responses: {
+            "200": {
+              description: "Logged out successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: { 
+                      message: { type: "string" }
+                    },
+                  },
+                },
+              },
+            },
+            "500": { description: "Internal server error" },
+          },
+        },
+      },
+      "/api/auth/logout-all": {
+        post: {
+          tags: ["Authentication"],
+          summary: "Logout from all devices",
+          description: "Revokes all refresh tokens for the authenticated user",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            "200": {
+              description: "Logged out from all devices successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: { 
+                      message: { type: "string" },
+                      revokedCount: { type: "integer" }
+                    },
+                  },
+                },
+              },
+            },
+            "401": { description: "User not authenticated" },
+            "500": { description: "Internal server error" },
+          },
+        },
+      },
+      "/api/auth/sessions": {
+        get: {
+          tags: ["Authentication"],
+          summary: "Get active sessions",
+          description: "Retrieve all active sessions for the authenticated user",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            "200": {
+              description: "Active sessions retrieved successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      sessions: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            id: { type: "string" },
+                            createdAt: { type: "string", format: "date-time" },
+                            expiresAt: { type: "string", format: "date-time" },
+                            isCurrent: { type: "boolean" },
+                            tokenPreview: { type: "string" }
+                          }
+                        }
+                      },
+                      totalActive: { type: "integer" }
+                    },
+                  },
+                },
+              },
+            },
+            "401": { description: "User not authenticated" },
+            "500": { description: "Internal server error" },
+          },
+        },
+      },
       "/api/auth/verify-email": {
         post: {
+          tags: ["Authentication"],
           summary: "Verify email using token (JSON body)",
           requestBody: {
             required: true,
@@ -154,6 +253,7 @@ export async function GET() {
       },
       "/api/auth/verify-email-link": {
         get: {
+          tags: ["Authentication"],
           summary: "Verify email using link (HTML response)",
           parameters: [
             {
@@ -171,6 +271,7 @@ export async function GET() {
       },
       "/api/auth/forgot-password": {
         post: {
+          tags: ["Authentication"],
           summary: "Request password reset email",
           requestBody: {
             required: true,
@@ -207,6 +308,7 @@ export async function GET() {
       },
       "/api/auth/reset-password": {
         post: {
+          tags: ["Authentication"],
           summary: "Reset password using reset token",
           requestBody: {
             required: true,
@@ -244,6 +346,7 @@ export async function GET() {
       },
       "/api/auth/send-verification-email": {
         post: {
+          tags: ["Authentication"],
           summary: "Send verification email to user",
           requestBody: {
             required: true,
@@ -281,6 +384,7 @@ export async function GET() {
       },
       "/api/auth/generate-passowrd": {
         get: {
+          tags: ["Authentication"],
           summary: "Generate a random password",
           responses: {
             "200": {
@@ -301,6 +405,7 @@ export async function GET() {
       },
       "/api/admin/create-account": {
         post: {
+          tags: ["Admin"],
           summary: "Create a new user account (Admin only)",
           security: [{ bearerAuth: [] }],
           requestBody: {
@@ -354,6 +459,7 @@ export async function GET() {
       },
       "/api/admin/add-company": {
         post: {
+          tags: ["Admin"],
           summary: "Add a new company (Admin only)",
           security: [{ bearerAuth: [] }],
           requestBody: {
@@ -415,6 +521,7 @@ export async function GET() {
       },
       "/api/faculty": {
         get: {
+          tags: ["Faculty"],
           summary: "Get all faculty profiles (public)",
           responses: {
             "200": {
@@ -446,6 +553,7 @@ export async function GET() {
       },
       "/api/faculty/profile": {
         get: {
+          tags: ["Faculty"],
           summary: "Get faculty profile (Faculty only)",
           security: [{ bearerAuth: [] }],
           responses: {
@@ -496,6 +604,7 @@ export async function GET() {
           },
         },
         post: {
+          tags: ["Faculty"],
           summary: "Create or update faculty profile (Faculty only)",
           security: [{ bearerAuth: [] }],
           requestBody: {
@@ -569,6 +678,440 @@ export async function GET() {
           },
         },
       },
+      "/api/student/create-internship": {
+        post: {
+          tags: ["Student"],
+          summary: "Create a new internship request (Student only)",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["type"],
+                  properties: {
+                    type: { 
+                      type: "string", 
+                      enum: ["ONSITE", "REMOTE", "FIVERR"],
+                      description: "Type of internship"
+                    },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "201": {
+              description: "Internship created successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      internship: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          studentId: { type: "string" },
+                          type: { type: "string", enum: ["ONSITE", "REMOTE", "FIVERR"] },
+                          status: { type: "string", enum: ["PENDING", "APPROVED", "REJECTED", "COMPLETED"] },
+                          createdAt: { type: "string", format: "date-time" },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "400": { description: "Invalid or missing internship type" },
+            "401": { description: "User information not found or invalid token" },
+            "403": { description: "Only students can create internships" },
+            "409": { description: "You already have an active internship request" },
+            "500": { description: "Internal server error" },
+          },
+        },
+      },
+      "/api/student/request-to-add-company": {
+        post: {
+          tags: ["Student"],
+          summary: "Request to add a new company (Student only)",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["name", "email"],
+                  properties: {
+                    name: { type: "string", description: "Company name" },
+                    email: { type: "string", format: "email", description: "Company email address" },
+                    phone: { type: "string", description: "Company phone number" },
+                    address: { type: "string", description: "Company address" },
+                    website: { type: "string", format: "uri", description: "Company website URL" },
+                    industry: { type: "string", description: "Company industry" },
+                    description: { type: "string", description: "Company description" },
+                    justification: { type: "string", description: "Why this company should be added" },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "201": {
+              description: "Company request created successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      companyRequest: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          studentId: { type: "string" },
+                          name: { type: "string" },
+                          email: { type: "string", format: "email" },
+                          phone: { type: "string" },
+                          address: { type: "string" },
+                          website: { type: "string" },
+                          industry: { type: "string" },
+                          description: { type: "string" },
+                          justification: { type: "string" },
+                          status: { type: "string", enum: ["PENDING", "APPROVED", "REJECTED"] },
+                          createdAt: { type: "string", format: "date-time" },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "400": { description: "Missing required fields or invalid email format" },
+            "401": { description: "User information not found or invalid token" },
+            "403": { description: "Only students can request to add companies" },
+            "409": { description: "Company with this email already exists or already requested" },
+            "500": { description: "Internal server error" },
+          },
+        },
+      },
+      "/api/student/appex-a": {
+        get: {
+          tags: ["Student"],
+          summary: "Get student's AppEx-A (Internship Approval) details",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            "200": {
+              description: "AppEx-A retrieved successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      internship: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          type: { type: "string", enum: ["ONSITE", "REMOTE", "FIVERR"] },
+                          status: { type: "string", enum: ["PENDING", "APPROVED", "REJECTED", "COMPLETED"] },
+                          student: {
+                            type: "object",
+                            properties: {
+                              id: { type: "string" },
+                              name: { type: "string" },
+                              email: { type: "string" },
+                              regNo: { type: "string" }
+                            }
+                          },
+                          appexA: {
+                            type: "object",
+                            properties: {
+                              id: { type: "string" },
+                              organization: { type: "string" },
+                              address: { type: "string" },
+                              industrySector: { type: "string" },
+                              contactName: { type: "string" },
+                              contactDesignation: { type: "string" },
+                              contactPhone: { type: "string" },
+                              contactEmail: { type: "string" },
+                              internshipField: { type: "string" },
+                              internshipLocation: { type: "string" },
+                              startDate: { type: "string", format: "date-time" },
+                              endDate: { type: "string", format: "date-time" },
+                              workingDays: { type: "string" },
+                              workingHours: { type: "string" },
+                              status: { type: "string", enum: ["pending", "approved", "rejected"] }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "401": { description: "User information not found or invalid token" },
+            "403": { description: "Only students can access AppEx-A information" },
+            "404": { description: "No active internship found" },
+            "500": { description: "Internal server error" }
+          }
+        },
+        post: {
+          tags: ["Student"],
+          summary: "Submit AppEx-A (Internship Approval) form",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: [
+                    "organization", "address", "industrySector", "contactName",
+                    "contactDesignation", "contactPhone", "contactEmail",
+                    "internshipField", "internshipLocation", "startDate", "endDate",
+                    "workingDays", "workingHours"
+                  ],
+                  properties: {
+                    organization: { type: "string", description: "Organization name" },
+                    address: { type: "string", description: "Organization address" },
+                    industrySector: { type: "string", description: "Industry sector" },
+                    contactName: { type: "string", description: "Contact person name" },
+                    contactDesignation: { type: "string", description: "Contact person designation" },
+                    contactPhone: { type: "string", description: "Contact phone number" },
+                    contactEmail: { type: "string", format: "email", description: "Contact email" },
+                    internshipField: { type: "string", description: "Field of internship" },
+                    internshipLocation: { type: "string", description: "Internship location" },
+                    startDate: { type: "string", format: "date", description: "Internship start date" },
+                    endDate: { type: "string", format: "date", description: "Internship end date" },
+                    workingDays: { type: "string", description: "Working days per week" },
+                    workingHours: { type: "string", description: "Working hours per day" }
+                  }
+                }
+              }
+            }
+          },
+          responses: {
+            "201": {
+              description: "AppEx-A submitted successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      appexA: { type: "object" }
+                    }
+                  }
+                }
+              }
+            },
+            "400": { description: "Missing required fields or invalid date format" },
+            "401": { description: "User information not found or invalid token" },
+            "403": { description: "Only students can submit AppEx-A" },
+            "404": { description: "No pending internship found" },
+            "409": { description: "AppEx-A already exists for this internship" },
+            "500": { description: "Internal server error" }
+          }
+        },
+        put: {
+          tags: ["Student"],
+          summary: "Update AppEx-A (Internship Approval) form",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    organization: { type: "string" },
+                    address: { type: "string" },
+                    industrySector: { type: "string" },
+                    contactName: { type: "string" },
+                    contactDesignation: { type: "string" },
+                    contactPhone: { type: "string" },
+                    contactEmail: { type: "string", format: "email" },
+                    internshipField: { type: "string" },
+                    internshipLocation: { type: "string" },
+                    startDate: { type: "string", format: "date" },
+                    endDate: { type: "string", format: "date" },
+                    workingDays: { type: "string" },
+                    workingHours: { type: "string" }
+                  }
+                }
+              }
+            }
+          },
+          responses: {
+            "200": {
+              description: "AppEx-A updated successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      appexA: { type: "object" }
+                    }
+                  }
+                }
+              }
+            },
+            "400": { description: "Invalid date format or dates" },
+            "401": { description: "User information not found or invalid token" },
+            "403": { description: "Only students can update AppEx-A or form already processed" },
+            "404": { description: "No pending internship or AppEx-A not found" },
+            "500": { description: "Internal server error" }
+          }
+        }
+      },
+      "/api/faculty/appex-a-approval": {
+        get: {
+          tags: ["Faculty"],
+          summary: "Get all AppEx-A submissions for approval (Faculty/Admin only)",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "status",
+              in: "query",
+              schema: { type: "string", enum: ["pending", "approved", "rejected", "all"] },
+              description: "Filter by approval status"
+            },
+            {
+              name: "page",
+              in: "query",
+              schema: { type: "integer", minimum: 1 },
+              description: "Page number for pagination"
+            },
+            {
+              name: "limit",
+              in: "query",
+              schema: { type: "integer", minimum: 1, maximum: 100 },
+              description: "Number of items per page"
+            }
+          ],
+          responses: {
+            "200": {
+              description: "AppEx-A submissions retrieved successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      data: { type: "array", items: { type: "object" } },
+                      pagination: {
+                        type: "object",
+                        properties: {
+                          page: { type: "integer" },
+                          limit: { type: "integer" },
+                          total: { type: "integer" },
+                          pages: { type: "integer" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "401": { description: "User information not found or invalid token" },
+            "403": { description: "Only faculty and admin can access AppEx-A approvals" },
+            "500": { description: "Internal server error" }
+          }
+        },
+        patch: {
+          tags: ["Faculty"],
+          summary: "Approve or reject AppEx-A submission (Faculty/Admin only)",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["appexAId", "status"],
+                  properties: {
+                    appexAId: { type: "string", description: "AppEx-A submission ID" },
+                    status: { type: "string", enum: ["approved", "rejected"], description: "Approval status" },
+                    comments: { type: "string", description: "Optional comments for approval/rejection" }
+                  }
+                }
+              }
+            }
+          },
+          responses: {
+            "200": {
+              description: "AppEx-A processed successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      appexA: { type: "object" },
+                      internship: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          student: { type: "object" },
+                          status: { type: "string" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "400": { description: "Missing required fields or invalid status" },
+            "401": { description: "User information not found or invalid token" },
+            "403": { description: "Only faculty and admin can approve/reject AppEx-A" },
+            "404": { description: "AppEx-A submission not found" },
+            "409": { description: "AppEx-A has already been processed" },
+            "500": { description: "Internal server error" }
+          }
+        }
+      },
+      "/api/faculty/appex-a-approval/{id}": {
+        get: {
+          tags: ["Faculty"],
+          summary: "Get specific AppEx-A submission details (Faculty/Admin only)",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+              description: "AppEx-A submission ID"
+            }
+          ],
+          responses: {
+            "200": {
+              description: "AppEx-A details retrieved successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      appexA: { type: "object" }
+                    }
+                  }
+                }
+              }
+            },
+            "401": { description: "User information not found or invalid token" },
+            "403": { description: "Only faculty and admin can access AppEx-A details" },
+            "404": { description: "AppEx-A submission not found" },
+            "500": { description: "Internal server error" }
+          }
+        }
+      },
     },
     components: {
       securitySchemes: {
@@ -576,9 +1119,56 @@ export async function GET() {
           type: "http",
           scheme: "bearer",
           bearerFormat: "JWT",
+          description: "JWT token obtained from /api/auth/login. Middleware automatically validates tokens for protected routes and passes user info via headers (x-user-id, x-user-role, x-user-name, x-user-email).",
+        },
+      },
+      responses: {
+        UnauthorizedError: {
+          description: "Authentication information is missing or invalid",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  error: { type: "string" },
+                },
+              },
+            },
+          },
+        },
+        ForbiddenError: {
+          description: "Access forbidden - insufficient permissions",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  error: { type: "string" },
+                },
+              },
+            },
+          },
         },
       },
     },
+    tags: [
+      {
+        name: "Authentication",
+        description: "User authentication and authorization endpoints",
+      },
+      {
+        name: "Admin",
+        description: "Administrative functions - requires ADMIN role",
+      },
+      {
+        name: "Faculty",
+        description: "Faculty-specific functions - requires FACULTY role",
+      },
+      {
+        name: "Student",
+        description: "Student-specific functions - requires STUDENT role",
+      },
+    ],
   } as const;
 
   return NextResponse.json(openapi);

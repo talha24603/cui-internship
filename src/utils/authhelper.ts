@@ -92,3 +92,52 @@ export const revokeRefreshToken = (token: string) => {
         data: { revoked: true }
     });
 }
+
+export const revokeAllUserTokens = (userId: string) => {
+    return prisma.refreshToken.updateMany({
+        where: { 
+            userId,
+            revoked: false
+        },
+        data: { revoked: true }
+    });
+}
+
+export const getValidRefreshToken = (token: string) => {
+    return prisma.refreshToken.findUnique({
+        where: { 
+            token,
+            revoked: false,
+            expiresAt: { gt: new Date() }
+        },
+        include: { user: true }
+    });
+}
+
+export const getUserActiveSessions = (userId: string) => {
+    return prisma.refreshToken.findMany({
+        where: {
+            userId,
+            revoked: false,
+            expiresAt: { gt: new Date() }
+        },
+        select: {
+            id: true,
+            token: true,
+            createdAt: true,
+            expiresAt: true
+        },
+        orderBy: { createdAt: 'desc' }
+    });
+}
+
+export const cleanupExpiredTokens = () => {
+    return prisma.refreshToken.deleteMany({
+        where: {
+            OR: [
+                { revoked: true },
+                { expiresAt: { lt: new Date() } }
+            ]
+        }
+    });
+}

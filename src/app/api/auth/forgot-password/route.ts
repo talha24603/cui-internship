@@ -20,7 +20,9 @@ export async function POST(req: Request) {
     await sendPasswordResetEmail(user.email, token);
 
     return NextResponse.json({ message: "If the email exists, a reset link was sent" });
-  } catch {
+  } catch(error) {
+    console.error("Forgot password error:", error);
+
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }

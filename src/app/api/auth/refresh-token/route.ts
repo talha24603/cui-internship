@@ -1,18 +1,5 @@
 import { NextResponse } from "next/server";
-import { verifyRefreshToken, signAccessToken } from "@/utils/authhelper";
-
-export async function OPTIONS() {
-  const origin = process.env.ALLOWED_ORIGIN || "";
-  const res = new NextResponse(null, { status: 204 });
-  if (origin) {
-    res.headers.set("Access-Control-Allow-Origin", origin);
-    res.headers.set("Vary", "Origin");
-  }
-  res.headers.set("Access-Control-Allow-Credentials", "true");
-  res.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  res.headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  return res;
-}
+import { verifyRefreshToken, signAccessToken, getValidRefreshToken } from "@/utils/authhelper";
 
 export async function GET(req: Request) {
   try {
@@ -25,19 +12,34 @@ export async function GET(req: Request) {
     if (!refreshToken) {
       return NextResponse.json({ message: "Refresh token not provided" }, { status: 401 });
     }
-    console.log("refreshToken",refreshToken);
-    const payload = verifyRefreshToken(refreshToken);
-    const newAccessToken = signAccessToken({ sub: (payload as any).sub });
 
-    const res = NextResponse.json({ accessToken: newAccessToken });
-    const origin = process.env.ALLOWED_ORIGIN || "";
-    if (origin) {
-      res.headers.set("Access-Control-Allow-Origin", origin);
-      res.headers.set("Vary", "Origin");
+    // Verify token signature and expiration
+    const payload = verifyRefreshToken(refreshToken);
+    
+    // Check if token exists and is valid in database
+    const storedToken = await getValidRefreshToken(refreshToken);
+    if (!storedToken) {
+      return NextResponse.json({ 
+        message: "Invalid or expired refresh token" 
+      }, { status: 401 });
     }
-    res.headers.set("Access-Control-Allow-Credentials", "true");
-    return res;
-  } catch {
-    return NextResponse.json({ message: "Invalid refresh token" }, { status: 401 });
+
+    // Generate new access token with user role
+    const newAccessToken = signAccessToken({ 
+      sub: payload.sub,
+      role: storedToken.user.role,
+      name: storedToken.user.name,
+      email: storedToken.user.email
+    });
+
+    return NextResponse.json({ 
+      accessToken: newAccessToken,
+      message: "Token refreshed successfully"
+    });
+  } catch (error) {
+    console.error("Refresh token error:", error);
+    return NextResponse.json({ 
+      message: "Invalid refresh token" 
+    }, { status: 401 });
   }
 }
