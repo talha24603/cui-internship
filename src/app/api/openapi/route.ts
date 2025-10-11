@@ -5,7 +5,7 @@ export async function GET() {
     openapi: "3.0.3",
     info: {
       title: "CUI Internship API",
-      version: "1.1.0",
+      version: "1.2.0",
       description: "OpenAPI specification for CUI Internship API - Auth, Admin, Faculty, and Student endpoints. All protected routes use middleware-based authentication with Bearer tokens.",
     },
     servers: [
@@ -797,6 +797,49 @@ export async function GET() {
             "500": { description: "Internal server error" },
           },
         },
+        get: {
+          tags: ["Student"],
+          summary: "Get student's own company requests (Student only)",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            "200": {
+              description: "Company requests retrieved successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      companyRequests: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            id: { type: "string" },
+                            studentId: { type: "string" },
+                            name: { type: "string" },
+                            email: { type: "string", format: "email" },
+                            phone: { type: "string" },
+                            address: { type: "string" },
+                            website: { type: "string" },
+                            industry: { type: "string" },
+                            description: { type: "string" },
+                            justification: { type: "string" },
+                            status: { type: "string", enum: ["PENDING", "APPROVED", "REJECTED"] },
+                            createdAt: { type: "string", format: "date-time" },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "401": { description: "Authorization header missing or invalid token" },
+            "403": { description: "Only students can access their company requests" },
+            "500": { description: "Internal server error" },
+          },
+        },
       },
       "/api/student/appex-a": {
         get: {
@@ -1112,6 +1155,47 @@ export async function GET() {
           }
         }
       },
+      "/api/cron/weekly-reminders": {
+        get: {
+          tags: ["Cron"],
+          summary: "Process weekly reminders for internships (System endpoint)",
+          description: "Automated endpoint that sends weekly log reminders to students and mid-report notifications to supervisors. Typically called by cron jobs or scheduled tasks.",
+          responses: {
+            "200": {
+              description: "Weekly reminders processed successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean" },
+                      message: { type: "string" },
+                      remindersSent: { type: "integer", description: "Number of weekly log reminders sent" },
+                      midReportNotifications: { type: "integer", description: "Number of mid-report notifications sent" },
+                      totalInternships: { type: "integer", description: "Total number of approved internships processed" }
+                    }
+                  }
+                }
+              }
+            },
+            "500": {
+              description: "Failed to process weekly reminders",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean" },
+                      message: { type: "string" },
+                      error: { type: "string" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
     },
     components: {
       securitySchemes: {
@@ -1167,6 +1251,10 @@ export async function GET() {
       {
         name: "Student",
         description: "Student-specific functions - requires STUDENT role",
+      },
+      {
+        name: "Cron",
+        description: "Automated system endpoints for scheduled tasks and reminders",
       },
     ],
   } as const;

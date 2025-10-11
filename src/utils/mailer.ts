@@ -34,7 +34,7 @@ export async function sendVerificationEmail(email: string, token: string) {
     subject: "Verify your email - CUI Bio-internship",
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <h2 style="color: #333;">Welcome to CUI Bio-internship!</h2>
+        <h2 style="color: #333;">Welcome to CUI Internship!</h2>
         <p>Thank you for registering. Please click the button below to verify your email address:</p>
         <div style="text-align: center; margin: 30px 0;">
           <a href="${verifyUrl}" 
@@ -64,7 +64,7 @@ export async function sendPasswordResetEmail(email: string, token: string) {
   }
 
   await transporter.sendMail({
-    from: `"CUI Bio-internship" <${process.env.SMTP_USER}>`,
+    from: `"CUI Internship" <${process.env.SMTP_USER}>`,
     to: email,
     subject: "Reset your password - CUI Bio-internship",
     html: `
@@ -77,7 +77,82 @@ export async function sendPasswordResetEmail(email: string, token: string) {
             Reset Password
           </a>
         </div>
-        <p style="color: #666; font-size: 14px;">If you didn’t request this, please ignore this email.</p>
+        <p style="color: #666; font-size: 14px;">If you didn't request this, please ignore this email.</p>
+      </div>
+    `,
+  });
+}
+
+export async function sendWeeklyLogReminder(studentEmail: string, studentName: string, weekNumber: number) {
+  const transporter = getTransporter();
+  if (!transporter) {
+    console.warn("SMTP env vars missing; skipping email send.");
+    return;
+  }
+
+  await transporter.sendMail({
+    from: `"CUI Internship" <${process.env.SMTP_USER}>`,
+    to: studentEmail,
+    subject: `Weekly Log Reminder - Week ${weekNumber}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #333;">Weekly Log Reminder</h2>
+        <p>Dear ${studentName || 'Student'},</p>
+        <p>This is a friendly reminder to submit your weekly log for <strong>Week ${weekNumber}</strong> of your internship.</p>
+        <p>Please log in to your internship portal and submit your weekly log with the following information:</p>
+        <ul style="color: #555;">
+          <li>Activities completed during the week</li>
+          <li>Skills learned</li>
+          <li>Challenges faced</li>
+        </ul>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${process.env.APP_URL || 'https://cui-internship-system.vercel.app'}/student/weekly-logs"
+             style="background-color: #28a745; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block;">
+            Submit Weekly Log
+          </a>
+        </div>
+        <p style="color: #666; font-size: 14px;">
+          If you have already submitted your weekly log, please ignore this reminder.
+        </p>
+        <p style="color: #666; font-size: 14px;">
+          Best regards,<br>
+          CUI Bio-internship Team
+        </p>
+      </div>
+    `,
+  });
+}
+
+export async function sendMidReportNotification(supervisorEmail: string, supervisorName: string, studentName: string) {
+  const transporter = getTransporter();
+  if (!transporter) {
+    console.warn("SMTP env vars missing; skipping email send.");
+    return;
+  }
+
+  await transporter.sendMail({
+    from: `"CUI Internship" <${process.env.SMTP_USER}>`,
+    to: supervisorEmail,
+    subject: "Mid-Report Submission Window Now Open",
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #333;">Mid-Report Submission Available</h2>
+        <p>Dear ${supervisorName || 'Supervisor'},</p>
+        <p>The mid-report submission window for <strong>${studentName}</strong>'s internship is now open.</p>
+        <p>You can now submit the mid-term evaluation report for this student through your supervisor portal.</p>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${process.env.APP_URL || 'https://cui-internship-system.vercel.app'}/supervisor/evaluations"
+             style="background-color: #007bff; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block;">
+            Submit Mid-Report
+          </a>
+        </div>
+        <p style="color: #666; font-size: 14px;">
+          Please ensure you submit the evaluation within the specified timeframe.
+        </p>
+        <p style="color: #666; font-size: 14px;">
+          Best regards,<br>
+          CUI Bio-internship Team
+        </p>
       </div>
     `,
   });
