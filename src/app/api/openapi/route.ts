@@ -5,7 +5,7 @@ export async function GET() {
     openapi: "3.0.3",
     info: {
       title: "CUI Internship API",
-      version: "1.2.0",
+      version: "1.3.0",
       description: "OpenAPI specification for CUI Internship API - Auth, Admin, Faculty, and Student endpoints. All protected routes use middleware-based authentication with Bearer tokens.",
     },
     servers: [
@@ -1193,6 +1193,239 @@ export async function GET() {
                 }
               }
             }
+          }
+        }
+      },
+      "/api/cron/cleanup-tokens": {
+        get: {
+          tags: ["Cron"],
+          summary: "Clean up expired and revoked refresh tokens (System endpoint)",
+          description: "Automated endpoint that removes expired and revoked refresh tokens from the database. Typically called by cron jobs or scheduled tasks.",
+          responses: {
+            "200": {
+              description: "Token cleanup completed successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean" },
+                      message: { type: "string" },
+                      deletedCount: { type: "integer", description: "Number of tokens deleted" },
+                      timestamp: { type: "string", format: "date-time", description: "Cleanup execution timestamp" }
+                    }
+                  }
+                }
+              }
+            },
+            "500": {
+              description: "Failed to process token cleanup",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean" },
+                      message: { type: "string" },
+                      error: { type: "string" },
+                      timestamp: { type: "string", format: "date-time", description: "Cleanup execution timestamp" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/admin/review-company": {
+        post: {
+          tags: ["Admin"],
+          summary: "Review company request - approve or reject (Admin only)",
+          description: "Allows admins to approve or reject company requests submitted by students. When approved, automatically creates a Company record.",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["requestId", "action"],
+                  properties: {
+                    requestId: { type: "string", description: "Company request ID to review" },
+                    action: { 
+                      type: "string", 
+                      enum: ["APPROVE", "REJECT"],
+                      description: "Action to take on the company request"
+                    },
+                    notes: { type: "string", description: "Optional admin notes for the review decision" }
+                  }
+                }
+              }
+            }
+          },
+          responses: {
+            "200": {
+              description: "Company request reviewed successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      request: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          name: { type: "string" },
+                          email: { type: "string", format: "email" },
+                          status: { type: "string", enum: ["APPROVED", "REJECTED"] },
+                          notes: { type: "string" },
+                          reviewedAt: { type: "string", format: "date-time" },
+                          requestedBy: {
+                            type: "object",
+                            properties: {
+                              id: { type: "string" },
+                              name: { type: "string" },
+                              email: { type: "string", format: "email" },
+                              regNo: { type: "string" }
+                            }
+                          },
+                          reviewedBy: {
+                            type: "object",
+                            properties: {
+                              id: { type: "string" },
+                              name: { type: "string" },
+                              email: { type: "string", format: "email" }
+                            }
+                          }
+                        }
+                      },
+                      company: {
+                        type: "object",
+                        nullable: true,
+                        properties: {
+                          id: { type: "string" },
+                          name: { type: "string" },
+                          email: { type: "string", format: "email" }
+                        },
+                        description: "Company record created when approved, null when rejected"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "400": { description: "Missing required fields or invalid action" },
+            "401": { description: "Authorization header with Bearer token is required" },
+            "403": { description: "Admin access required" },
+            "404": { description: "Company request not found" },
+            "409": { description: "Company request has already been reviewed" },
+            "500": { description: "Internal server error" }
+          }
+        },
+        get: {
+          tags: ["Admin"],
+          summary: "Get company requests for review (Admin only)",
+          description: "Retrieve company requests with filtering, search, and pagination. Shows statistics and allows filtering by status.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "page",
+              in: "query",
+              schema: { type: "integer", minimum: 1, default: 1 },
+              description: "Page number for pagination"
+            },
+            {
+              name: "limit",
+              in: "query",
+              schema: { type: "integer", minimum: 1, maximum: 100, default: 10 },
+              description: "Number of items per page"
+            },
+            {
+              name: "status",
+              in: "query",
+              schema: { type: "string", enum: ["PENDING", "APPROVED", "REJECTED"] },
+              description: "Filter by request status"
+            },
+            {
+              name: "search",
+              in: "query",
+              schema: { type: "string" },
+              description: "Search in company name, email, or industry"
+            }
+          ],
+          responses: {
+            "200": {
+              description: "Company requests retrieved successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      requests: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            id: { type: "string" },
+                            name: { type: "string" },
+                            email: { type: "string", format: "email" },
+                            phone: { type: "string" },
+                            address: { type: "string" },
+                            website: { type: "string" },
+                            industry: { type: "string" },
+                            description: { type: "string" },
+                            reason: { type: "string" },
+                            status: { type: "string", enum: ["PENDING", "APPROVED", "REJECTED"] },
+                            notes: { type: "string" },
+                            createdAt: { type: "string", format: "date-time" },
+                            reviewedAt: { type: "string", format: "date-time" },
+                            requestedBy: {
+                              type: "object",
+                              properties: {
+                                id: { type: "string" },
+                                name: { type: "string" },
+                                email: { type: "string", format: "email" },
+                                regNo: { type: "string" }
+                              }
+                            },
+                            reviewedBy: {
+                              type: "object",
+                              nullable: true,
+                              properties: {
+                                id: { type: "string" },
+                                name: { type: "string" },
+                                email: { type: "string", format: "email" }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      pagination: {
+                        type: "object",
+                        properties: {
+                          page: { type: "integer" },
+                          limit: { type: "integer" },
+                          total: { type: "integer" },
+                          pages: { type: "integer" }
+                        }
+                      },
+                      statistics: {
+                        type: "object",
+                        properties: {
+                          PENDING: { type: "integer" },
+                          APPROVED: { type: "integer" },
+                          REJECTED: { type: "integer" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "401": { description: "Authorization header with Bearer token is required" },
+            "403": { description: "Admin access required" },
+            "500": { description: "Internal server error" }
           }
         }
       },

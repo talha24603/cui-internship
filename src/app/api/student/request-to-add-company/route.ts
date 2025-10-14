@@ -1,36 +1,16 @@
 import { NextResponse } from "next/server";
-import { verifyAccessToken } from "@/utils/authhelper";
 import prisma from "@/utils/prisma";
-// Prisma client with connection pooling for serverless
-// const globalForPrisma = globalThis as unknown as {
-//   prisma: PrismaClient | undefined;
-// };
-
-// const prisma = globalForPrisma.prisma ?? new PrismaClient({
-//   log: ['error'],
-// });
-
-// if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
 export async function POST(req: Request) {
   try {
-    // Get authorization header
-    const authHeader = req.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json({ error: "Authorization header missing or invalid" }, { status: 401 });
-    }
-
-    // Verify access token
-    const token = authHeader.substring(7);
-    let payload;
-    try {
-      payload = verifyAccessToken(token);
-    } catch (error) {
-      return NextResponse.json({ error: "Invalid or expired token" }, { status: 401 });
-    }
+    // Get user info from middleware headers
+    const userId = req.headers.get('x-user-id');
+    const userRole = req.headers.get('x-user-role');
+    const userName = req.headers.get('x-user-name');
+    const userEmail = req.headers.get('x-user-email');
 
     // Check if user is a student
-    if (payload.role !== 'STUDENT') {
+    if (userRole !== 'STUDENT') {
       return NextResponse.json({ error: "Only students can request new companies" }, { status: 403 });
     }
 
@@ -95,7 +75,7 @@ export async function POST(req: Request) {
         industry,
         description,
         reason,
-        requestedById: payload.sub as string,
+        requestedById: userId!,
         status: "PENDING"
       },
       include: {
@@ -123,7 +103,12 @@ export async function POST(req: Request) {
         description: companyRequest.description,
         reason: companyRequest.reason,
         status: companyRequest.status,
-        requestedBy: companyRequest.requestedBy,
+        requestedBy: {
+          id: companyRequest.requestedById,
+          name: userName,
+          email: userEmail,
+          regNo: null
+        },
         createdAt: companyRequest.createdAt
       }
     }, { status: 201 });
@@ -143,23 +128,12 @@ export async function POST(req: Request) {
 // GET endpoint to retrieve student's own company requests
 export async function GET(req: Request) {
   try {
-    // Get authorization header
-    const authHeader = req.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json({ error: "Authorization header missing or invalid" }, { status: 401 });
-    }
-
-    // Verify access token
-    const token = authHeader.substring(7);
-    let payload;
-    try {
-      payload = verifyAccessToken(token);
-    } catch (error) {
-      return NextResponse.json({ error: "Invalid or expired token" }, { status: 401 });
-    }
+    // Get user info from middleware headers
+    const userId = req.headers.get('x-user-id');
+    const userRole = req.headers.get('x-user-role');
 
     // Check if user is a student
-    if (payload.role !== 'STUDENT') {
+    if (userRole !== 'STUDENT') {
       return NextResponse.json({ error: "Only students can view their company requests" }, { status: 403 });
     }
 
@@ -173,7 +147,7 @@ export async function GET(req: Request) {
 
     // Build where clause
     const where: any = {
-      requestedById: payload.sub as string
+      requestedById: userId!
     };
 
     if (status && ['PENDING', 'APPROVED', 'REJECTED'].includes(status)) {
