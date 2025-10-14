@@ -149,7 +149,7 @@ export async function POST(req: Request) {
 export async function GET(req: Request) {
   try {
     // Get user info from middleware headers
-    const userId = req.headers.get('x-user-id');
+    // const userId = req.headers.get('x-user-id');
     const userRole = req.headers.get('x-user-role');
 
     // Check if user is admin
