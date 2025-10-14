@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/utils/prisma";
 import { sendWeeklyLogReminder, sendMidReportNotification } from "@/utils/mailer";
-const { differenceInWeeks, addWeeks } = require("date-fns");
+import { differenceInWeeks, addWeeks } from "date-fns";
 
 export async function GET() {
   try {
