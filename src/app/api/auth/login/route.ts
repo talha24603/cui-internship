@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import prisma from "@/utils/prisma";
 import { comparePassword, signAccessToken, signRefreshToken, storeRefreshToken } from "@/utils/authhelper";
-
-const prisma = new PrismaClient();
 
 export async function POST(req: Request) {
   try {
@@ -34,8 +32,12 @@ export async function POST(req: Request) {
     });
 
     return res;
-  } catch {
-    return NextResponse.json({ message: "Internal server error" }, { status: 500 });
+  } catch (error) {
+    console.error("Login error:", error);
+    return NextResponse.json({ 
+      message: "Internal server error",
+      error: error instanceof Error ? error.message : "Unknown error"
+    }, { status: 500 });
   }
 }
 
