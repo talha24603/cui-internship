@@ -5,8 +5,8 @@ export async function GET() {
     openapi: "3.0.3",
     info: {
       title: "CUI Internship API",
-      version: "1.4.0",
-      description: "OpenAPI specification for CUI Internship API - Auth, Admin, Faculty, Student, and Site Supervisor endpoints. All protected routes use middleware-based authentication with Bearer tokens.",
+      version: "1.5.0",
+      description: "OpenAPI specification for CUI Internship API - Auth, Admin, Faculty, Student, Site Supervisor, and Dropdown endpoints. All protected routes use middleware-based authentication with Bearer tokens.",
     },
     servers: [
       { url: "https://cui-internship-git-dev-talhas-projects-59c8907e.vercel.app", description: "Default" },
@@ -1744,6 +1744,182 @@ export async function GET() {
             },
             "401": { description: "Authorization header with Bearer token is required" },
             "403": { description: "Admin access required" },
+            "500": { description: "Internal server error" }
+          }
+        }
+      },
+      "/api/dropdown/faculty": {
+        get: {
+          tags: ["Dropdown"],
+          summary: "Get faculty dropdown data",
+          description: "Returns a list of verified faculty members for dropdown selection",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "search",
+              in: "query",
+              description: "Search faculty by name (case-insensitive)",
+              required: false,
+              schema: { type: "string" }
+            },
+            {
+              name: "department",
+              in: "query",
+              description: "Filter by department (case-insensitive)",
+              required: false,
+              schema: { type: "string" }
+            }
+          ],
+          responses: {
+            "200": {
+              description: "Faculty dropdown data retrieved successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean" },
+                      data: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            id: { type: "string" },
+                            name: { type: "string" },
+                            email: { type: "string", format: "email" },
+                            department: { type: "string" },
+                            designation: { type: "string" }
+                          }
+                        }
+                      },
+                      total: { type: "integer" }
+                    }
+                  }
+                }
+              }
+            },
+            "401": { description: "Unauthorized - Invalid or missing token" },
+            "500": { description: "Internal server error" }
+          }
+        }
+      },
+      "/api/dropdown/site-supervisors": {
+        get: {
+          tags: ["Dropdown"],
+          summary: "Get site supervisors dropdown data",
+          description: "Returns a list of verified site supervisors with company information",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "search",
+              in: "query",
+              description: "Search supervisors by name (case-insensitive)",
+              required: false,
+              schema: { type: "string" }
+            },
+            {
+              name: "companyId",
+              in: "query",
+              description: "Filter supervisors by company ID",
+              required: false,
+              schema: { type: "string" }
+            }
+          ],
+          responses: {
+            "200": {
+              description: "Site supervisors dropdown data retrieved successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean" },
+                      data: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            id: { type: "string" },
+                            name: { type: "string" },
+                            email: { type: "string", format: "email" },
+                            company: {
+                              type: "object",
+                              nullable: true,
+                              properties: {
+                                id: { type: "string" },
+                                name: { type: "string" },
+                                industry: { type: "string" }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      total: { type: "integer" }
+                    }
+                  }
+                }
+              }
+            },
+            "401": { description: "Unauthorized - Invalid or missing token" },
+            "500": { description: "Internal server error" }
+          }
+        }
+      },
+      "/api/dropdown/companies": {
+        get: {
+          tags: ["Dropdown"],
+          summary: "Get companies dropdown data",
+          description: "Returns a list of companies with their information and supervisor counts",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "search",
+              in: "query",
+              description: "Search companies by name (case-insensitive)",
+              required: false,
+              schema: { type: "string" }
+            },
+            {
+              name: "industry",
+              in: "query",
+              description: "Filter by industry (case-insensitive)",
+              required: false,
+              schema: { type: "string" }
+            }
+          ],
+          responses: {
+            "200": {
+              description: "Companies dropdown data retrieved successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean" },
+                      data: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            id: { type: "string" },
+                            name: { type: "string" },
+                            email: { type: "string", format: "email" },
+                            phone: { type: "string", nullable: true },
+                            address: { type: "string", nullable: true },
+                            website: { type: "string", nullable: true },
+                            industry: { type: "string" },
+                            description: { type: "string", nullable: true },
+                            supervisorCount: { type: "integer" }
+                          }
+                        }
+                      },
+                      total: { type: "integer" }
+                    }
+                  }
+                }
+              }
+            },
+            "401": { description: "Unauthorized - Invalid or missing token" },
             "500": { description: "Internal server error" }
           }
         }
