@@ -5,13 +5,5 @@
       "src": "package.json",
       "use": "@vercel/next"
     }
-  ],
-  "functions": {
-    "src/app/api/cron/cleanup-tokens/route.ts": {
-      "maxDuration": 10
-    },
-    "src/app/api/cron/weekly-reminders/route.ts": {
-      "maxDuration": 10
-    }
-  }
+  ]
 }
