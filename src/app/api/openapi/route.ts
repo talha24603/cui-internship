@@ -9,7 +9,8 @@ export async function GET() {
       description: "OpenAPI specification for CUI Internship API - Auth, Admin, Faculty, Student, Site Supervisor, and Dropdown endpoints. All protected routes use middleware-based authentication with Bearer tokens.",
     },
     servers: [
-      { url: "https://cui-internship-git-dev-talhas-projects-59c8907e.vercel.app", description: "Default" },
+      { url: "https://cui-internship-system.vercel.app", description: "Production" },
+      { url: "https://cui-internship-system-git-dev-zas-projects-7d9cf03b.vercel.app", description: "Development" },
     ],
     externalDocs: {
       description: "Authentication Flow",
