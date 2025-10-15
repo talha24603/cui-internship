@@ -5,8 +5,8 @@ export async function GET() {
     openapi: "3.0.3",
     info: {
       title: "CUI Internship API",
-      version: "1.3.0",
-      description: "OpenAPI specification for CUI Internship API - Auth, Admin, Faculty, and Student endpoints. All protected routes use middleware-based authentication with Bearer tokens.",
+      version: "1.4.0",
+      description: "OpenAPI specification for CUI Internship API - Auth, Admin, Faculty, Student, and Site Supervisor endpoints. All protected routes use middleware-based authentication with Bearer tokens.",
     },
     servers: [
       { url: "https://cui-internship-git-dev-talhas-projects-59c8907e.vercel.app", description: "Default" },
@@ -419,7 +419,8 @@ export async function GET() {
                     email: { type: "string", format: "email" },
                     name: { type: "string" },
                     password: { type: "string" },
-                    role: { type: "string", enum: ["ADMIN", "USER", "FACULTY"] },
+                    role: { type: "string", enum: ["ADMIN", "USER", "FACULTY", "SITE_SUPERVISOR"] },
+                    companyId: { type: "string", description: "Company ID to assign site supervisor to (required for SITE_SUPERVISOR role)" },
                   },
                 },
               },
@@ -450,7 +451,7 @@ export async function GET() {
                 },
               },
             },
-            "400": { description: "Missing required fields or invalid role" },
+            "400": { description: "Missing required fields, invalid role, or company not found for site supervisor" },
             "401": { description: "Authorization header with Bearer token is required" },
             "403": { description: "Admin access required or unauthorized access" },
             "500": { description: "Internal server error" },
@@ -515,6 +516,278 @@ export async function GET() {
             "401": { description: "Authorization header with Bearer token is required" },
             "403": { description: "Admin access required" },
             "409": { description: "Company with this email already exists" },
+            "500": { description: "Internal server error" },
+          },
+        },
+      },
+      "/api/admin/assign-supervisor": {
+        post: {
+          tags: ["Admin"],
+          summary: "Assign site supervisor to company (Admin only)",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["siteSupervisorId", "companyId"],
+                  properties: {
+                    siteSupervisorId: { type: "string", description: "Site supervisor user ID" },
+                    companyId: { type: "string", description: "Company ID to assign supervisor to" },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "Site supervisor assigned to company successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      supervisor: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          name: { type: "string" },
+                          email: { type: "string", format: "email" },
+                          company: {
+                            type: "object",
+                            properties: {
+                              id: { type: "string" },
+                              name: { type: "string" },
+                              email: { type: "string", format: "email" },
+                              industry: { type: "string" },
+                            },
+                          },
+                        },
+                      },
+                      assignedBy: { type: "string", description: "Admin user ID who made the assignment" },
+                    },
+                  },
+                },
+              },
+            },
+            "400": { description: "Missing required fields, site supervisor not found, or user is not a site supervisor" },
+            "401": { description: "Authorization header with Bearer token is required" },
+            "403": { description: "Admin access required" },
+            "404": { description: "Site supervisor or company not found" },
+            "409": { description: "Site supervisor is already assigned to another company" },
+            "500": { description: "Internal server error" },
+          },
+        },
+        get: {
+          tags: ["Admin"],
+          summary: "Get site supervisors with filtering options (Admin only)",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "companyId",
+              in: "query",
+              schema: { type: "string" },
+              description: "Filter by specific company ID",
+            },
+            {
+              name: "unassigned",
+              in: "query",
+              schema: { type: "boolean" },
+              description: "Get only unassigned site supervisors",
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Site supervisors retrieved successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      supervisors: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            id: { type: "string" },
+                            name: { type: "string" },
+                            email: { type: "string", format: "email" },
+                            verified: { type: "boolean" },
+                            createdAt: { type: "string", format: "date-time" },
+                            company: {
+                              type: "object",
+                              nullable: true,
+                              properties: {
+                                id: { type: "string" },
+                                name: { type: "string" },
+                                email: { type: "string", format: "email" },
+                                industry: { type: "string" },
+                              },
+                            },
+                            siteInternships: {
+                              type: "array",
+                              items: {
+                                type: "object",
+                                properties: {
+                                  id: { type: "string" },
+                                  status: { type: "string" },
+                                  student: {
+                                    type: "object",
+                                    properties: {
+                                      id: { type: "string" },
+                                      name: { type: "string" },
+                                      regNo: { type: "string" },
+                                    },
+                                  },
+                                },
+                              },
+                            },
+                          },
+                        },
+                      },
+                      total: { type: "integer" },
+                    },
+                  },
+                },
+              },
+            },
+            "401": { description: "Authorization header with Bearer token is required" },
+            "403": { description: "Admin access required" },
+            "500": { description: "Internal server error" },
+          },
+        },
+      },
+      "/api/admin/company-supervisors": {
+        get: {
+          tags: ["Admin"],
+          summary: "Get site supervisors for a specific company (Admin only)",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "companyId",
+              in: "query",
+              required: true,
+              schema: { type: "string" },
+              description: "Company ID to get supervisors for",
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Company supervisors retrieved successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      company: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          name: { type: "string" },
+                          email: { type: "string", format: "email" },
+                          phone: { type: "string" },
+                          address: { type: "string" },
+                          website: { type: "string" },
+                          industry: { type: "string" },
+                          description: { type: "string" },
+                          supervisors: {
+                            type: "array",
+                            items: {
+                              type: "object",
+                              properties: {
+                                id: { type: "string" },
+                                name: { type: "string" },
+                                email: { type: "string", format: "email" },
+                                verified: { type: "boolean" },
+                                createdAt: { type: "string", format: "date-time" },
+                                siteInternships: {
+                                  type: "array",
+                                  items: {
+                                    type: "object",
+                                    properties: {
+                                      id: { type: "string" },
+                                      status: { type: "string" },
+                                      student: {
+                                        type: "object",
+                                        properties: {
+                                          id: { type: "string" },
+                                          name: { type: "string" },
+                                          regNo: { type: "string" },
+                                        },
+                                      },
+                                    },
+                                  },
+                                },
+                              },
+                            },
+                          },
+                          supervisorCount: { type: "integer" },
+                        },
+                      },
+                      totalSupervisors: { type: "integer" },
+                    },
+                  },
+                },
+              },
+            },
+            "400": { description: "Company ID is required" },
+            "401": { description: "Authorization header with Bearer token is required" },
+            "403": { description: "Admin access required" },
+            "404": { description: "Company not found" },
+            "500": { description: "Internal server error" },
+          },
+        },
+        post: {
+          tags: ["Admin"],
+          summary: "Get all companies with their supervisor counts (Admin only)",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            "200": {
+              description: "Companies with supervisors retrieved successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      companies: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            id: { type: "string" },
+                            name: { type: "string" },
+                            email: { type: "string", format: "email" },
+                            phone: { type: "string" },
+                            address: { type: "string" },
+                            website: { type: "string" },
+                            industry: { type: "string" },
+                            description: { type: "string" },
+                            createdAt: { type: "string", format: "date-time" },
+                            supervisorCount: { type: "integer" },
+                            supervisors: {
+                              type: "array",
+                              items: {
+                                type: "object",
+                                properties: {
+                                  id: { type: "string" },
+                                  name: { type: "string" },
+                                  email: { type: "string", format: "email" },
+                                  verified: { type: "boolean" },
+                                },
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "401": { description: "Authorization header with Bearer token is required" },
+            "403": { description: "Admin access required" },
             "500": { description: "Internal server error" },
           },
         },
@@ -696,6 +969,14 @@ export async function GET() {
                       enum: ["ONSITE", "REMOTE", "FIVERR"],
                       description: "Type of internship"
                     },
+                    siteId: { 
+                      type: "string", 
+                      description: "Site supervisor user ID (optional)" 
+                    },
+                    facultyId: { 
+                      type: "string", 
+                      description: "Faculty supervisor user ID (optional)" 
+                    },
                   },
                 },
               },
@@ -717,6 +998,44 @@ export async function GET() {
                           studentId: { type: "string" },
                           type: { type: "string", enum: ["ONSITE", "REMOTE", "FIVERR"] },
                           status: { type: "string", enum: ["PENDING", "APPROVED", "REJECTED", "COMPLETED"] },
+                          facultyId: { type: "string", nullable: true },
+                          siteId: { type: "string", nullable: true },
+                          student: {
+                            type: "object",
+                            properties: {
+                              id: { type: "string" },
+                              name: { type: "string" },
+                              email: { type: "string", format: "email" },
+                              regNo: { type: "string" },
+                            },
+                          },
+                          faculty: {
+                            type: "object",
+                            nullable: true,
+                            properties: {
+                              id: { type: "string" },
+                              name: { type: "string" },
+                              email: { type: "string", format: "email" },
+                            },
+                          },
+                          site: {
+                            type: "object",
+                            nullable: true,
+                            properties: {
+                              id: { type: "string" },
+                              name: { type: "string" },
+                              email: { type: "string", format: "email" },
+                              company: {
+                                type: "object",
+                                nullable: true,
+                                properties: {
+                                  id: { type: "string" },
+                                  name: { type: "string" },
+                                  industry: { type: "string" },
+                                },
+                              },
+                            },
+                          },
                           createdAt: { type: "string", format: "date-time" },
                         },
                       },
@@ -725,7 +1044,7 @@ export async function GET() {
                 },
               },
             },
-            "400": { description: "Invalid or missing internship type" },
+            "400": { description: "Invalid or missing internship type, site supervisor not found, user is not a site supervisor, site supervisor not assigned to company, faculty member not found, or user is not a faculty member" },
             "401": { description: "User information not found or invalid token" },
             "403": { description: "Only students can create internships" },
             "409": { description: "You already have an active internship request" },
@@ -1484,6 +1803,10 @@ export async function GET() {
       {
         name: "Student",
         description: "Student-specific functions - requires STUDENT role",
+      },
+      {
+        name: "Site Supervisor",
+        description: "Site supervisor functions - requires SITE_SUPERVISOR role",
       },
       {
         name: "Cron",
