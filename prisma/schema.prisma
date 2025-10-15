@@ -44,6 +44,10 @@ model User {
   evaluations Evaluation[]
   companyRequests CompanyRequest[]
   reviewedCompanyRequests CompanyRequest[] @relation("CompanyRequestReviewer")
+  
+  // Company relationship for site supervisors
+  companyId   String?
+  company     Company? @relation("CompanySiteSupervisors", fields: [companyId], references: [id])
 }
 
 model RefreshToken {
@@ -84,6 +88,9 @@ model Company {
   description String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  
+  // Site supervisors associated with this company
+  siteSupervisors User[] @relation("CompanySiteSupervisors")
 }
 
 model CompanyRequest {
