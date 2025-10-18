@@ -4,7 +4,7 @@ import prisma from "@/utils/prisma";
 // GET endpoint to retrieve a specific company request status for a student
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Get user info from middleware headers
@@ -18,7 +18,7 @@ export async function GET(
       }, { status: 403 });
     }
 
-    const requestId = params.id;
+    const { id: requestId } = await params;
 
     // Validate request ID format (should be a valid UUID)
     if (!requestId || typeof requestId !== 'string') {
