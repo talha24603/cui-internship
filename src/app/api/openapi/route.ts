@@ -5,7 +5,7 @@ export async function GET() {
     openapi: "3.0.3",
     info: {
       title: "CUI Internship API",
-      version: "1.5.0",
+      version: "1.6.0",
       description: "OpenAPI specification for CUI Internship API - Auth, Admin, Faculty, Student, Site Supervisor, and Dropdown endpoints. All protected routes use middleware-based authentication with Bearer tokens.",
     },
     servers: [
@@ -1663,6 +1663,379 @@ export async function GET() {
             },
             "401": { description: "Authorization header with Bearer token is required" },
             "403": { description: "Admin access required" },
+            "500": { description: "Internal server error" }
+          }
+        }
+      },
+      "/api/admin/edit-faculty": {
+        put: {
+          tags: ["Admin"],
+          summary: "Edit faculty information and profile (Admin only)",
+          description: "Updates faculty user information and profile details including department, designation, and other profile fields.",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["id"],
+                  properties: {
+                    id: { type: "string", description: "Faculty user ID (required)" },
+                    email: { type: "string", format: "email", description: "Faculty email address (optional)" },
+                    name: { type: "string", description: "Faculty full name (optional)" },
+                    password: { type: "string", description: "New password (optional, will be hashed)" },
+                    department: { type: "string", description: "Faculty department (optional)" },
+                    designation: { type: "string", description: "Faculty designation/position (optional)" },
+                    phone: { type: "string", description: "Faculty phone number (optional)" },
+                    office: { type: "string", description: "Faculty office location (optional)" },
+                    bio: { type: "string", description: "Faculty biography (optional)" },
+                    avatarUrl: { type: "string", format: "uri", description: "Faculty avatar image URL (optional)" },
+                    qualifications: { type: "string", description: "Faculty qualifications (optional)" },
+                    expertise: { type: "string", description: "Faculty areas of expertise (optional)" }
+                  }
+                }
+              }
+            }
+          },
+          responses: {
+            "200": {
+              description: "Faculty updated successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      faculty: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          email: { type: "string", format: "email" },
+                          name: { type: "string" },
+                          role: { type: "string", enum: ["FACULTY"] },
+                          verified: { type: "boolean" },
+                          profile: {
+                            type: "object",
+                            properties: {
+                              department: { type: "string" },
+                              designation: { type: "string" },
+                              phone: { type: "string" },
+                              office: { type: "string" },
+                              bio: { type: "string" },
+                              avatarUrl: { type: "string", format: "uri" },
+                              qualifications: { type: "string" },
+                              expertise: { type: "string" }
+                            }
+                          },
+                          updatedAt: { type: "string", format: "date-time" }
+                        }
+                      },
+                      updatedBy: { type: "string", description: "Admin user ID who made the update" }
+                    }
+                  }
+                }
+              }
+            },
+            "400": { description: "Missing faculty ID, invalid email format, or user is not a faculty member" },
+            "401": { description: "Authorization header with Bearer token is required" },
+            "403": { description: "Admin access required" },
+            "404": { description: "Faculty not found" },
+            "409": { description: "Email already exists" },
+            "500": { description: "Internal server error" }
+          }
+        }
+      },
+      "/api/admin/delete-faculty": {
+        delete: {
+          tags: ["Admin"],
+          summary: "Delete faculty member (Admin only)",
+          description: "Deletes a faculty member with safety checks to prevent deletion of faculty with active internships or evaluations.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "id",
+              in: "query",
+              required: true,
+              schema: { type: "string" },
+              description: "Faculty user ID to delete"
+            }
+          ],
+          responses: {
+            "200": {
+              description: "Faculty deleted successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      deletedFaculty: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          email: { type: "string", format: "email" },
+                          name: { type: "string" },
+                          role: { type: "string", enum: ["FACULTY"] }
+                        }
+                      },
+                      deletedBy: { type: "string", description: "Admin user ID who performed the deletion" }
+                    }
+                  }
+                }
+              }
+            },
+            "400": { description: "Faculty ID required, user is not a faculty member, or faculty has active internships/evaluations" },
+            "401": { description: "Authorization header with Bearer token is required" },
+            "403": { description: "Admin access required" },
+            "404": { description: "Faculty not found" },
+            "500": { description: "Internal server error" }
+          }
+        }
+      },
+      "/api/admin/edit-site-supervisor": {
+        put: {
+          tags: ["Admin"],
+          summary: "Edit site supervisor information (Admin only)",
+          description: "Updates site supervisor user information including company assignment.",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["id"],
+                  properties: {
+                    id: { type: "string", description: "Site supervisor user ID (required)" },
+                    email: { type: "string", format: "email", description: "Site supervisor email address (optional)" },
+                    name: { type: "string", description: "Site supervisor full name (optional)" },
+                    password: { type: "string", description: "New password (optional, will be hashed)" },
+                    companyId: { type: "string", description: "Company ID to assign supervisor to (optional)" }
+                  }
+                }
+              }
+            }
+          },
+          responses: {
+            "200": {
+              description: "Site supervisor updated successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      supervisor: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          email: { type: "string", format: "email" },
+                          name: { type: "string" },
+                          role: { type: "string", enum: ["SITE_SUPERVISOR"] },
+                          verified: { type: "boolean" },
+                          company: {
+                            type: "object",
+                            nullable: true,
+                            properties: {
+                              id: { type: "string" },
+                              name: { type: "string" },
+                              email: { type: "string", format: "email" }
+                            }
+                          },
+                          updatedAt: { type: "string", format: "date-time" }
+                        }
+                      },
+                      updatedBy: { type: "string", description: "Admin user ID who made the update" }
+                    }
+                  }
+                }
+              }
+            },
+            "400": { description: "Missing supervisor ID, invalid email format, or user is not a site supervisor" },
+            "401": { description: "Authorization header with Bearer token is required" },
+            "403": { description: "Admin access required" },
+            "404": { description: "Site supervisor or company not found" },
+            "409": { description: "Email already exists" },
+            "500": { description: "Internal server error" }
+          }
+        }
+      },
+      "/api/admin/delete-site-supervisor": {
+        delete: {
+          tags: ["Admin"],
+          summary: "Delete site supervisor (Admin only)",
+          description: "Deletes a site supervisor with safety checks to prevent deletion of supervisors with active internships or evaluations.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "id",
+              in: "query",
+              required: true,
+              schema: { type: "string" },
+              description: "Site supervisor user ID to delete"
+            }
+          ],
+          responses: {
+            "200": {
+              description: "Site supervisor deleted successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      deletedSupervisor: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          email: { type: "string", format: "email" },
+                          name: { type: "string" },
+                          role: { type: "string", enum: ["SITE_SUPERVISOR"] },
+                          company: {
+                            type: "object",
+                            nullable: true,
+                            properties: {
+                              id: { type: "string" },
+                              name: { type: "string" }
+                            }
+                          }
+                        }
+                      },
+                      deletedBy: { type: "string", description: "Admin user ID who performed the deletion" }
+                    }
+                  }
+                }
+              }
+            },
+            "400": { description: "Supervisor ID required, user is not a site supervisor, or supervisor has active internships/evaluations" },
+            "401": { description: "Authorization header with Bearer token is required" },
+            "403": { description: "Admin access required" },
+            "404": { description: "Site supervisor not found" },
+            "500": { description: "Internal server error" }
+          }
+        }
+      },
+      "/api/admin/edit-company": {
+        put: {
+          tags: ["Admin"],
+          summary: "Edit company information (Admin only)",
+          description: "Updates company information including contact details, industry, and description.",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["id"],
+                  properties: {
+                    id: { type: "string", description: "Company ID (required)" },
+                    name: { type: "string", description: "Company name (optional)" },
+                    email: { type: "string", format: "email", description: "Company email address (optional)" },
+                    phone: { type: "string", description: "Company phone number (optional)" },
+                    address: { type: "string", description: "Company address (optional)" },
+                    website: { type: "string", format: "uri", description: "Company website URL (optional)" },
+                    industry: { type: "string", description: "Company industry (optional)" },
+                    description: { type: "string", description: "Company description (optional)" }
+                  }
+                }
+              }
+            }
+          },
+          responses: {
+            "200": {
+              description: "Company updated successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      company: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          name: { type: "string" },
+                          email: { type: "string", format: "email" },
+                          phone: { type: "string" },
+                          address: { type: "string" },
+                          website: { type: "string" },
+                          industry: { type: "string" },
+                          description: { type: "string" },
+                          siteSupervisors: {
+                            type: "array",
+                            items: {
+                              type: "object",
+                              properties: {
+                                id: { type: "string" },
+                                name: { type: "string" },
+                                email: { type: "string", format: "email" }
+                              }
+                            }
+                          },
+                          createdAt: { type: "string", format: "date-time" },
+                          updatedAt: { type: "string", format: "date-time" }
+                        }
+                      },
+                      updatedBy: { type: "string", description: "Admin user ID who made the update" }
+                    }
+                  }
+                }
+              }
+            },
+            "400": { description: "Missing company ID or invalid email format" },
+            "401": { description: "Authorization header with Bearer token is required" },
+            "403": { description: "Admin access required" },
+            "404": { description: "Company not found" },
+            "409": { description: "Email already exists" },
+            "500": { description: "Internal server error" }
+          }
+        }
+      },
+      "/api/admin/delete-company": {
+        delete: {
+          tags: ["Admin"],
+          summary: "Delete company and associated supervisors (Admin only)",
+          description: "Deletes a company and all its site supervisors with safety checks to prevent deletion of companies with supervisors having active internships or evaluations.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "id",
+              in: "query",
+              required: true,
+              schema: { type: "string" },
+              description: "Company ID to delete"
+            }
+          ],
+          responses: {
+            "200": {
+              description: "Company deleted successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      deletedCompany: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          name: { type: "string" },
+                          email: { type: "string", format: "email" },
+                          siteSupervisorsCount: { type: "integer" }
+                        }
+                      },
+                      deletedBy: { type: "string", description: "Admin user ID who performed the deletion" }
+                    }
+                  }
+                }
+              }
+            },
+            "400": { description: "Company ID required or company has supervisors with active internships/evaluations" },
+            "401": { description: "Authorization header with Bearer token is required" },
+            "403": { description: "Admin access required" },
+            "404": { description: "Company not found" },
             "500": { description: "Internal server error" }
           }
         }
