@@ -21,12 +21,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     const appexA = await prisma.internshipApproval.findUnique({
       where: { id },
       include: {
-        internship: {
-          include: {
-            student: {
-              select: { id: true, name: true, email: true, regNo: true }
-            }
-          }
+        student: {
+          select: { id: true, name: true, email: true, regNo: true }
         }
       }
     });
