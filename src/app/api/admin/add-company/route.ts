@@ -15,7 +15,7 @@ export async function POST(req: Request) {
     // Get admin user info from middleware headers
     const adminUserId = req.headers.get('x-user-id');
     const adminUserRole = req.headers.get('x-user-role');
-    
+
     if (!adminUserId || adminUserRole !== 'ADMIN') {
       return NextResponse.json({ error: "Unauthorized access" }, { status: 403 });
     }
@@ -66,12 +66,12 @@ export async function POST(req: Request) {
 
   } catch (error) {
     console.error("Add company error:", error);
-    
+
     // Handle Prisma unique constraint error
     if (error instanceof Error && error.message.includes('Unique constraint')) {
       return NextResponse.json({ error: "Company with this email already exists" }, { status: 409 });
     }
-    
+
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }

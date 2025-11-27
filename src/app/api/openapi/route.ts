@@ -1667,6 +1667,120 @@ export async function GET() {
           }
         }
       },
+      "/api/admin/appex-a": {
+        get: {
+          tags: ["Admin"],
+          summary: "Get all AppEx-A submissions (Admin only)",
+          description: "Retrieve all AppEx-A submissions with limited fields. Can filter by status.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "status",
+              in: "query",
+              schema: { type: "string", enum: ["pending", "approved", "rejected"] },
+              description: "Filter by approval status"
+            }
+          ],
+          responses: {
+            "200": {
+              description: "AppEx-A submissions retrieved successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      data: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            id: { type: "string" },
+                            startDate: { type: "string", format: "date-time" },
+                            endDate: { type: "string", format: "date-time" },
+                            status: { type: "string", enum: ["pending", "approved", "rejected"] },
+                            student: {
+                              type: "object",
+                              properties: {
+                                id: { type: "string" },
+                                name: { type: "string" },
+                                email: { type: "string", format: "email" },
+                                regNo: { type: "string" }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "401": { description: "Authorization header with Bearer token is required" },
+            "403": { description: "Admin access required" },
+            "500": { description: "Internal server error" }
+          }
+        },
+        patch: {
+          tags: ["Admin"],
+          summary: "Approve or reject AppEx-A submission (Admin only)",
+          description: "Allows admins to approve or reject AppEx-A submissions. Can update status even if already processed.",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["appexAId", "status"],
+                  properties: {
+                    appexAId: { type: "string", description: "AppEx-A submission ID" },
+                    status: { 
+                      type: "string", 
+                      enum: ["approved", "rejected"],
+                      description: "New status for the AppEx-A submission"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          responses: {
+            "200": {
+              description: "AppEx-A status updated successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      appexA: {
+                        type: "object",
+                        description: "Updated AppEx-A submission"
+                      },
+                      student: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          name: { type: "string" },
+                          email: { type: "string", format: "email" },
+                          regNo: { type: "string" }
+                        }
+                      },
+                      processedBy: { type: "string", description: "Admin user ID who processed the request" }
+                    }
+                  }
+                }
+              }
+            },
+            "400": { description: "Missing required fields or invalid status" },
+            "401": { description: "Authorization header with Bearer token is required" },
+            "403": { description: "Admin access required" },
+            "404": { description: "AppEx-A submission not found" },
+            "500": { description: "Internal server error" }
+          }
+        }
+      },
       "/api/admin/edit-faculty": {
         put: {
           tags: ["Admin"],
