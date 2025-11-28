@@ -1401,6 +1401,70 @@ export async function GET() {
           }
         }
       },
+      "/api/student/appex-c": {
+        post: {
+          tags: ["Student"],
+          summary: "Create or update AppEx C (Internship Proposal) form",
+          description: "Upserts AppEx C data for the authenticated student.",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: [
+                    "organizationOverview",
+                    "roleDescription",
+                    "keyActivities",
+                    "toolsTechnologies",
+                    "expectedDeliverables"
+                  ],
+                  properties: {
+                    organizationOverview: { type: "string", description: "Overview of the host organization" },
+                    roleDescription: { type: "string", description: "Description of the internship role" },
+                    keyActivities: { type: "string", description: "Planned key activities" },
+                    toolsTechnologies: { type: "string", description: "Tools or technologies to be used" },
+                    expectedDeliverables: { type: "string", description: "Expected outcomes or deliverables" }
+                  }
+                }
+              }
+            }
+          },
+          responses: {
+            "200": {
+              description: "AppEx C saved successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      internshipProposal: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          studentId: { type: "string" },
+                          organizationOverview: { type: "string" },
+                          roleDescription: { type: "string" },
+                          keyActivities: { type: "string" },
+                          toolsTechnologies: { type: "string" },
+                          expectedDeliverables: { type: "string" },
+                          submittedDate: { type: "string", format: "date-time" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "400": { description: "Missing required fields or invalid payload" },
+            "401": { description: "User information not found or invalid token" },
+            "403": { description: "Only students can submit AppEx C" },
+            "500": { description: "Internal server error" }
+          }
+        }
+      },
       "/api/student/company-request-status": {
         get: {
           tags: ["Student"],

@@ -13,7 +13,7 @@ export async function GET() {
       include: {
         student: true,
         site: true,
-        assignment: true,
+      //  assignment: true,
         weeklyLogs: {
           orderBy: {
             weekNo: 'desc'
@@ -29,12 +29,12 @@ export async function GET() {
 
     for (const internship of internships) {
       // Skip if no start date or assignment
-      if (!internship.startDate || !internship.assignment) {
+      if (!internship.startDate ) {
         continue;
       }
 
       const weeksPassed = differenceInWeeks(now, internship.startDate);
-      const totalWeeks = internship.assignment.durationWeeks;
+      const totalWeeks = 12; // internship.assignment.durationWeeks;
 
       // Skip if totalWeeks is null or undefined
       if (totalWeeks === null || totalWeeks === undefined) {

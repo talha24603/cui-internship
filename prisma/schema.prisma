@@ -51,6 +51,7 @@ model User {
   company              Company?              @relation("CompanySiteSupervisors", fields: [companyId], references: [id])
   InternshipApproval   InternshipApproval?
   InternshipAssignment InternshipAssignment?
+  InternshipProposal   InternshipProposal?
 }
 
 model RefreshToken {
@@ -134,9 +135,6 @@ model Internship {
   endDate   DateTime? // will be set after Annex A is approved
   status    InternshipStatus
 
-  approvals   InternshipApproval?   @relation(fields: [internshipApprovalId], references: [id])
-  assignment  InternshipAssignment? @relation(fields: [internshipAssignmentId], references: [id])
-  proposal    InternshipProposal?
   reports     InternshipReport[]
   weeklyLogs  WeeklyLog[]
   evaluations Evaluation[]
@@ -146,6 +144,7 @@ model Internship {
   updatedAt              DateTime @updatedAt
   internshipApprovalId   String?
   internshipAssignmentId String?
+  internshipProposalId   String?
 
   @@index([studentId])
   @@index([facultyId])
@@ -175,7 +174,6 @@ model InternshipApproval {
   workingDays  String
   workingHours String
   status       String // pending, approved, rejected
-  Internship   Internship[]
 }
 
 model InternshipAssignment {
@@ -198,19 +196,18 @@ model InternshipAssignment {
   endDate                    String?
   agreementAccepted          Boolean?
   status                     String?
-  Internship                 Internship[]
 }
 
 model InternshipProposal {
-  id                   String     @id @default(uuid())
-  internship           Internship @relation(fields: [internshipId], references: [id])
-  internshipId         String     @unique
+  id                   String   @id @default(uuid())
+  student              User     @relation(fields: [studentId], references: [id])
+  studentId            String   @unique
   organizationOverview String
   roleDescription      String
-  scopeOfWork          String
+  keyActivities        String
   toolsTechnologies    String
   expectedDeliverables String
-  submittedDate        DateTime   @default(now())
+  submittedDate        DateTime @default(now())
 }
 
 model InternshipReport {

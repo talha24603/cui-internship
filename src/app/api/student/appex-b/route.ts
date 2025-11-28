@@ -15,12 +15,12 @@ export async function POST(req: Request) {
       );
     }
 
-    // if (userRole !== "STUDENT") {
-    //   return NextResponse.json(
-    //     { error: "Only students can submit AppEx B" },
-    //     { status: 403 }
-    //   );
-    // }
+    if (userRole !== "STUDENT") {
+      return NextResponse.json(
+        { error: "Only students can submit AppEx B" },
+        { status: 403 }
+      );
+    }
 
     const body = await req.json();
     const {
