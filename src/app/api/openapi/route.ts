@@ -10,7 +10,7 @@ export async function GET() {
     },
     servers: [
       { url: "https://cui-internship-system.vercel.app", description: "Production" },
-      { url: "https://cui-internship-system-git-dev-zas-projects-7d9cf03b.vercel.app", description: "Development" },
+      { url: "https://cui-internship-git-dev-talhas-projects-59c8907e.vercel.app", description: "Development" },
     ],
     externalDocs: {
       description: "Authentication Flow",
