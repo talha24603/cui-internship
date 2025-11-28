@@ -47,9 +47,10 @@ model User {
   reviewedCompanyRequests CompanyRequest[] @relation("CompanyRequestReviewer")
 
   // Company relationship for site supervisors
-  companyId          String?
-  company            Company?            @relation("CompanySiteSupervisors", fields: [companyId], references: [id])
-  InternshipApproval InternshipApproval?
+  companyId            String?
+  company              Company?              @relation("CompanySiteSupervisors", fields: [companyId], references: [id])
+  InternshipApproval   InternshipApproval?
+  InternshipAssignment InternshipAssignment?
 }
 
 model RefreshToken {
@@ -134,16 +135,17 @@ model Internship {
   status    InternshipStatus
 
   approvals   InternshipApproval?   @relation(fields: [internshipApprovalId], references: [id])
-  assignment  InternshipAssignment?
+  assignment  InternshipAssignment? @relation(fields: [internshipAssignmentId], references: [id])
   proposal    InternshipProposal?
   reports     InternshipReport[]
   weeklyLogs  WeeklyLog[]
   evaluations Evaluation[]
   finalResult FinalResult?
 
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-  internshipApprovalId String?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+  internshipApprovalId   String?
+  internshipAssignmentId String?
 
   @@index([studentId])
   @@index([facultyId])
@@ -177,15 +179,26 @@ model InternshipApproval {
 }
 
 model InternshipAssignment {
-  id                String     @id @default(uuid())
-  internship        Internship @relation(fields: [internshipId], references: [id])
-  internshipId      String     @unique
-  program           String
-  semester          String
-  contactNo         String
-  preferredField    String
-  durationWeeks     Int
-  agreementAccepted Boolean
+  id            String @id @default(uuid())
+  student       User   @relation(fields: [studentId], references: [id])
+  studentId     String @unique
+  name          String
+  degreeProgram String
+
+  email                      String
+  semester                   String
+  contactNo                  String
+  preferredField             String
+  companyName                String?
+  internshipRole             String?
+  facultySupervisorNameDesig String?
+  siteSupervisorNameDesig    String?
+  durationWeeks              Int?
+  startDate                  String?
+  endDate                    String?
+  agreementAccepted          Boolean?
+  status                     String?
+  Internship                 Internship[]
 }
 
 model InternshipProposal {
