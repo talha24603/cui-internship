@@ -5,7 +5,7 @@ export async function GET() {
     openapi: "3.0.3",
     info: {
       title: "CUI Internship API",
-      version: "1.6.0",
+      version: "1.7.0",
       description: "OpenAPI specification for CUI Internship API - Auth, Admin, Faculty, Student, Site Supervisor, and Dropdown endpoints. All protected routes use middleware-based authentication with Bearer tokens.",
     },
     servers: [
@@ -1333,6 +1333,253 @@ export async function GET() {
           }
         }
       },
+      "/api/student/appex-b": {
+        post: {
+          tags: ["Student"],
+          summary: "Create or update AppEx B (Internship Assignment) form",
+          description: "Upserts AppEx B form data. Creates if it doesn't exist, updates if it does.",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: [
+                    "name",
+                    "degreeProgram",
+                    "email",
+                    "semester",
+                    "contactNo",
+                    "preferredField",
+                    "agreementAccepted"
+                  ],
+                  properties: {
+                    name: { type: "string", description: "Student name" },
+                    degreeProgram: { type: "string", description: "Degree program" },
+                    email: { type: "string", format: "email", description: "Student email" },
+                    semester: { type: "string", description: "Semester" },
+                    contactNo: { type: "string", description: "Contact number" },
+                    preferredField: { type: "string", description: "Preferred field of internship" },
+                    agreementAccepted: { type: "boolean", description: "Whether agreement is accepted" }
+                  }
+                }
+              }
+            }
+          },
+          responses: {
+            "200": {
+              description: "AppEx B saved successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      internshipAssignment: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          studentId: { type: "string" },
+                          name: { type: "string" },
+                          degreeProgram: { type: "string" },
+                          email: { type: "string", format: "email" },
+                          semester: { type: "string" },
+                          contactNo: { type: "string" },
+                          preferredField: { type: "string" },
+                          agreementAccepted: { type: "boolean" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "400": { description: "Missing required fields, invalid email format, or agreementAccepted is not boolean" },
+            "401": { description: "User information not found or invalid token" },
+            "500": { description: "Internal server error" }
+          }
+        }
+      },
+      "/api/student/company-request-status": {
+        get: {
+          tags: ["Student"],
+          summary: "Get all company requests for the authenticated student",
+          description: "Returns all company requests submitted by the student with status information",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "includeStats",
+              in: "query",
+              schema: { type: "boolean" },
+              description: "Include statistics about request statuses"
+            }
+          ],
+          responses: {
+            "200": {
+              description: "Company requests retrieved successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      requests: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            id: { type: "string" },
+                            name: { type: "string" },
+                            email: { type: "string", format: "email" },
+                            phone: { type: "string", nullable: true },
+                            address: { type: "string", nullable: true },
+                            website: { type: "string", nullable: true },
+                            industry: { type: "string" },
+                            description: { type: "string", nullable: true },
+                            reason: { type: "string", nullable: true },
+                            status: { type: "string", enum: ["PENDING", "APPROVED", "REJECTED"] },
+                            notes: { type: "string", nullable: true },
+                            createdAt: { type: "string", format: "date-time" },
+                            updatedAt: { type: "string", format: "date-time" },
+                            reviewedAt: { type: "string", format: "date-time", nullable: true },
+                            reviewedBy: {
+                              type: "object",
+                              nullable: true,
+                              properties: {
+                                id: { type: "string" },
+                                name: { type: "string" },
+                                email: { type: "string", format: "email" }
+                              }
+                            },
+                            statusInfo: {
+                              type: "object",
+                              properties: {
+                                currentStatus: { type: "string" },
+                                isPending: { type: "boolean" },
+                                isApproved: { type: "boolean" },
+                                isRejected: { type: "boolean" },
+                                submittedAt: { type: "string", format: "date-time" },
+                                lastUpdatedAt: { type: "string", format: "date-time" },
+                                reviewedAt: { type: "string", format: "date-time", nullable: true },
+                                hasNotes: { type: "boolean" }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      total: { type: "integer" },
+                      statistics: {
+                        type: "object",
+                        properties: {
+                          total: { type: "integer" },
+                          byStatus: {
+                            type: "object",
+                            properties: {
+                              PENDING: { type: "integer" },
+                              APPROVED: { type: "integer" },
+                              REJECTED: { type: "integer" }
+                            }
+                          },
+                          pendingCount: { type: "integer" },
+                          approvedCount: { type: "integer" },
+                          rejectedCount: { type: "integer" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "403": { description: "Only students can view their company requests" },
+            "500": { description: "Internal server error" }
+          }
+        }
+      },
+      "/api/student/company-request-status/{id}": {
+        get: {
+          tags: ["Student"],
+          summary: "Get a specific company request status by ID",
+          description: "Returns detailed information about a specific company request for the authenticated student",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+              description: "Company request ID"
+            }
+          ],
+          responses: {
+            "200": {
+              description: "Company request retrieved successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      request: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          name: { type: "string" },
+                          email: { type: "string", format: "email" },
+                          phone: { type: "string", nullable: true },
+                          address: { type: "string", nullable: true },
+                          website: { type: "string", nullable: true },
+                          industry: { type: "string" },
+                          description: { type: "string", nullable: true },
+                          reason: { type: "string", nullable: true },
+                          status: { type: "string", enum: ["PENDING", "APPROVED", "REJECTED"] },
+                          notes: { type: "string", nullable: true },
+                          createdAt: { type: "string", format: "date-time" },
+                          updatedAt: { type: "string", format: "date-time" },
+                          reviewedAt: { type: "string", format: "date-time", nullable: true },
+                          requestedBy: {
+                            type: "object",
+                            properties: {
+                              id: { type: "string" },
+                              name: { type: "string" },
+                              email: { type: "string", format: "email" },
+                              regNo: { type: "string" }
+                            }
+                          },
+                          reviewedBy: {
+                            type: "object",
+                            nullable: true,
+                            properties: {
+                              id: { type: "string" },
+                              name: { type: "string" },
+                              email: { type: "string", format: "email" }
+                            }
+                          }
+                        }
+                      },
+                      statusInfo: {
+                        type: "object",
+                        properties: {
+                          currentStatus: { type: "string" },
+                          isPending: { type: "boolean" },
+                          isApproved: { type: "boolean" },
+                          isRejected: { type: "boolean" },
+                          submittedAt: { type: "string", format: "date-time" },
+                          lastUpdatedAt: { type: "string", format: "date-time" },
+                          reviewedAt: { type: "string", format: "date-time", nullable: true },
+                          hasNotes: { type: "boolean" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "400": { description: "Valid request ID is required" },
+            "403": { description: "Only students can view company request status or request doesn't belong to user" },
+            "404": { description: "Company request not found" },
+            "500": { description: "Internal server error" }
+          }
+        }
+      },
       "/api/faculty/appex-a-approval": {
         get: {
           tags: ["Faculty"],
@@ -1462,7 +1709,35 @@ export async function GET() {
                     type: "object",
                     properties: {
                       message: { type: "string" },
-                      appexA: { type: "object" }
+                      appexA: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          organization: { type: "string" },
+                          address: { type: "string" },
+                          industrySector: { type: "string" },
+                          contactName: { type: "string" },
+                          contactDesignation: { type: "string" },
+                          contactPhone: { type: "string" },
+                          contactEmail: { type: "string", format: "email" },
+                          internshipField: { type: "string" },
+                          internshipLocation: { type: "string" },
+                          startDate: { type: "string", format: "date-time" },
+                          endDate: { type: "string", format: "date-time" },
+                          workingDays: { type: "string" },
+                          workingHours: { type: "string" },
+                          status: { type: "string", enum: ["pending", "approved", "rejected"] },
+                          student: {
+                            type: "object",
+                            properties: {
+                              id: { type: "string" },
+                              name: { type: "string" },
+                              email: { type: "string", format: "email" },
+                              regNo: { type: "string" }
+                            }
+                          }
+                        }
+                      }
                     }
                   }
                 }
@@ -2330,6 +2605,128 @@ export async function GET() {
           }
         }
       },
+      "/api/health": {
+        get: {
+          tags: ["Health"],
+          summary: "Health check endpoint",
+          description: "Returns the health status of the API",
+          responses: {
+            "200": {
+              description: "Service is healthy",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      status: { type: "string", example: "healthy" },
+                      timestamp: { type: "string", format: "date-time" },
+                      environment: { type: "string", example: "production" },
+                      version: { type: "string", example: "1.5.0" }
+                    }
+                  }
+                }
+              }
+            },
+            "500": {
+              description: "Service is unhealthy",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      status: { type: "string", example: "unhealthy" },
+                      error: { type: "string" },
+                      timestamp: { type: "string", format: "date-time" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/maintenance/cleanup-tokens": {
+        get: {
+          tags: ["Cron"],
+          summary: "Cleanup expired tokens",
+          description: "Manually trigger cleanup of expired refresh tokens from the database",
+          responses: {
+            "200": {
+              description: "Token cleanup completed successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean" },
+                      message: { type: "string" },
+                      deletedCount: { type: "integer" },
+                      timestamp: { type: "string", format: "date-time" }
+                    }
+                  }
+                }
+              }
+            },
+            "500": {
+              description: "Token cleanup failed",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean" },
+                      message: { type: "string" },
+                      error: { type: "string" },
+                      timestamp: { type: "string", format: "date-time" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/maintenance/weekly-reminders": {
+        get: {
+          tags: ["Cron"],
+          summary: "Send weekly reminders to students",
+          description: "Manually trigger weekly log reminders and mid-report notifications for active internships",
+          responses: {
+            "200": {
+              description: "Weekly reminders processed successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean" },
+                      message: { type: "string" },
+                      remindersSent: { type: "integer", description: "Number of weekly log reminders sent" },
+                      midReportNotifications: { type: "integer", description: "Number of mid-report notifications sent" },
+                      totalInternships: { type: "integer", description: "Total number of active internships processed" }
+                    }
+                  }
+                }
+              }
+            },
+            "500": {
+              description: "Failed to process weekly reminders",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean" },
+                      message: { type: "string" },
+                      error: { type: "string" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
     },
     components: {
       securitySchemes: {
@@ -2393,6 +2790,14 @@ export async function GET() {
       {
         name: "Cron",
         description: "Automated system endpoints for scheduled tasks and reminders",
+      },
+      {
+        name: "Health",
+        description: "Health check and system status endpoints",
+      },
+      {
+        name: "Dropdown",
+        description: "Dropdown data endpoints for select fields",
       },
     ],
   } as const;

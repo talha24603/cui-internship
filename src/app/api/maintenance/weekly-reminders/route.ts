@@ -36,6 +36,11 @@ export async function GET() {
       const weeksPassed = differenceInWeeks(now, internship.startDate);
       const totalWeeks = internship.assignment.durationWeeks;
 
+      // Skip if totalWeeks is null or undefined
+      if (totalWeeks === null || totalWeeks === undefined) {
+        continue;
+      }
+
       // Check if internship is still ongoing
       if (weeksPassed < totalWeeks) {
         // Check if student needs to submit a weekly log
@@ -57,7 +62,7 @@ export async function GET() {
         }
       }
 
-      // Check for mid-report notification
+      // Check for mid-report notification (totalWeeks is already validated above)
       const midPoint = addWeeks(internship.startDate, Math.floor(totalWeeks / 2));
       
       // Check if we're at or past the midpoint and haven't sent mid-report notification yet
