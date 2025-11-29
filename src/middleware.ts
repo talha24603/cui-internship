@@ -5,11 +5,11 @@ import type { NextRequest } from "next/server";
 import { verifyAccessToken } from "@/utils/authhelper";
 
 // Whitelisted frontends
-const allowedOrigins = [
-  "http://localhost:4200",                   // dev
-  "https://cui-internship-system.vercel.app",
-  "https://cui-internship-system-git-dev-zas-projects-7d9cf03b.vercel.app" // prod
-];
+// const allowedOrigins = [
+//   "http://localhost:4200",                   // dev
+//   "https://cui-internship-system.vercel.app",
+//   "https://cui-internship-system-git-dev-zas-projects-7d9cf03b.vercel.app" // prod
+// ];
 
 export function middleware(req: NextRequest) {
   const origin = req.headers.get("origin") || "";
@@ -18,10 +18,19 @@ export function middleware(req: NextRequest) {
   const res = NextResponse.next();
 
   // --- CORS ---
-  if (allowedOrigins.includes(origin)) {
-    res.headers.set("Access-Control-Allow-Origin", origin );
+  // Allow all origins
+  if (origin) {
+    res.headers.set("Access-Control-Allow-Origin", origin);
     res.headers.set("Access-Control-Allow-Credentials", "true");
+  } else {
+    res.headers.set("Access-Control-Allow-Origin", "*");
   }
+  
+  // Previous CORS logic with allowedOrigins check:
+  // if (allowedOrigins.includes(origin)) {
+  //   res.headers.set("Access-Control-Allow-Origin", origin );
+  //   res.headers.set("Access-Control-Allow-Credentials", "true");
+  // }
   res.headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
   res.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
 

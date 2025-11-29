@@ -182,7 +182,6 @@ model InternshipAssignment {
   studentId     String @unique
   name          String
   degreeProgram String
-
   email                      String
   semester                   String
   contactNo                  String
@@ -204,7 +203,7 @@ model InternshipProposal {
   studentId            String   @unique
   organizationOverview String
   roleDescription      String
-  keyActivities        String
+  keyActivities        String  
   toolsTechnologies    String
   expectedDeliverables String
   submittedDate        DateTime @default(now())
