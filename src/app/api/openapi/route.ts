@@ -5,7 +5,7 @@ export async function GET() {
     openapi: "3.0.3",
     info: {
       title: "CUI Internship API",
-      version: "1.7.0",
+      version: "1.8.0",
       description: "OpenAPI specification for CUI Internship API - Auth, Admin, Faculty, Student, Site Supervisor, and Dropdown endpoints. All protected routes use middleware-based authentication with Bearer tokens.",
     },
     servers: [
@@ -1201,8 +1201,10 @@ export async function GET() {
                               contactDesignation: { type: "string" },
                               contactPhone: { type: "string" },
                               contactEmail: { type: "string" },
-                              internshipField: { type: "string" },
                               internshipLocation: { type: "string" },
+                              internshipNature: { type: "string" },
+                              mode: { type: "string" },
+                              numberOfInternship: { type: "string" },
                               startDate: { type: "string", format: "date-time" },
                               endDate: { type: "string", format: "date-time" },
                               workingDays: { type: "string" },
@@ -1236,8 +1238,8 @@ export async function GET() {
                   required: [
                     "organization", "address", "industrySector", "contactName",
                     "contactDesignation", "contactPhone", "contactEmail",
-                    "internshipField", "internshipLocation", "startDate", "endDate",
-                    "workingDays", "workingHours"
+                    "internshipLocation", "internshipNature", "mode", "numberOfInternship",
+                    "startDate", "endDate", "workingDays", "workingHours"
                   ],
                   properties: {
                     organization: { type: "string", description: "Organization name" },
@@ -1247,8 +1249,10 @@ export async function GET() {
                     contactDesignation: { type: "string", description: "Contact person designation" },
                     contactPhone: { type: "string", description: "Contact phone number" },
                     contactEmail: { type: "string", format: "email", description: "Contact email" },
-                    internshipField: { type: "string", description: "Field of internship" },
                     internshipLocation: { type: "string", description: "Internship location" },
+                    internshipNature: { type: "string", description: "Nature of internship" },
+                    mode: { type: "string", description: "Internship mode" },
+                    numberOfInternship: { type: "string", description: "Number of internships" },
                     startDate: { type: "string", format: "date", description: "Internship start date" },
                     endDate: { type: "string", format: "date", description: "Internship end date" },
                     workingDays: { type: "string", description: "Working days per week" },
@@ -1299,8 +1303,10 @@ export async function GET() {
                     contactDesignation: { type: "string" },
                     contactPhone: { type: "string" },
                     contactEmail: { type: "string", format: "email" },
-                    internshipField: { type: "string" },
                     internshipLocation: { type: "string" },
+                    internshipNature: { type: "string" },
+                    mode: { type: "string" },
+                    numberOfInternship: { type: "string" },
                     startDate: { type: "string", format: "date" },
                     endDate: { type: "string", format: "date" },
                     workingDays: { type: "string" },
@@ -1461,6 +1467,127 @@ export async function GET() {
             "400": { description: "Missing required fields or invalid payload" },
             "401": { description: "User information not found or invalid token" },
             "403": { description: "Only students can submit AppEx C" },
+            "500": { description: "Internal server error" }
+          }
+        }
+      },
+      "/api/student/weekly-logs": {
+        get: {
+          tags: ["Student"],
+          summary: "Get all weekly logs for student's internship",
+          description: "Retrieves all weekly logs for the authenticated student's approved internship, including weekly log status information.",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            "200": {
+              description: "Weekly logs retrieved successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      internship: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          startDate: { type: "string", format: "date-time" },
+                          endDate: { type: "string", format: "date-time" },
+                          status: { type: "string", enum: ["APPROVED", "COMPLETED"] }
+                        }
+                      },
+                      weeklyLogs: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            id: { type: "string" },
+                            internshipId: { type: "string" },
+                            weekNo: { type: "integer" },
+                            activitiesDone: { type: "string" },
+                            skillsLearned: { type: "string" },
+                            challenges: { type: "string" },
+                            submittedAt: { type: "string", format: "date-time" }
+                          }
+                        }
+                      },
+                      weeklyLogStatus: {
+                        type: "object",
+                        nullable: true,
+                        properties: {
+                          totalWeeks: { type: "integer" },
+                          currentWeek: { type: "integer" },
+                          submittedWeeks: { type: "array", items: { type: "integer" } },
+                          pendingWeeks: { type: "array", items: { type: "integer" } },
+                          hasStarted: { type: "boolean" },
+                          hasEnded: { type: "boolean" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "401": { description: "User information not found or invalid token" },
+            "403": { description: "Only students can access their weekly logs" },
+            "404": { description: "No approved internship found for this student" },
+            "500": { description: "Internal server error" }
+          }
+        },
+        post: {
+          tags: ["Student"],
+          summary: "Submit a weekly log",
+          description: "Submit a weekly log for the authenticated student's approved internship. Validates week number, internship dates, and prevents duplicate submissions.",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["weekNo", "activitiesDone", "skillsLearned", "challenges"],
+                  properties: {
+                    weekNo: { type: "integer", description: "Week number (must be positive integer)", minimum: 1 },
+                    activitiesDone: { type: "string", description: "Activities completed during the week" },
+                    skillsLearned: { type: "string", description: "Skills learned during the week" },
+                    challenges: { type: "string", description: "Challenges faced during the week" }
+                  }
+                }
+              }
+            }
+          },
+          responses: {
+            "201": {
+              description: "Weekly log submitted successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      weeklyLog: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          internshipId: { type: "string" },
+                          weekNo: { type: "integer" },
+                          activitiesDone: { type: "string" },
+                          skillsLearned: { type: "string" },
+                          challenges: { type: "string" },
+                          submittedAt: { type: "string", format: "date-time" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "400": {
+              description: "Missing required fields, invalid week number, internship dates not set, internship not started, or week number out of range"
+            },
+            "401": { description: "User information not found or invalid token" },
+            "403": { description: "Only students can submit weekly logs" },
+            "404": { description: "No approved internship found for this student" },
+            "409": { description: "Weekly log for this week already exists" },
             "500": { description: "Internal server error" }
           }
         }
@@ -2116,6 +2243,117 @@ export async function GET() {
             "401": { description: "Authorization header with Bearer token is required" },
             "403": { description: "Admin access required" },
             "404": { description: "AppEx-A submission not found" },
+            "500": { description: "Internal server error" }
+          }
+        }
+      },
+      "/api/admin/appex-b": {
+        get: {
+          tags: ["Admin"],
+          summary: "Get all AppEx B (Internship Assignment) submissions (Admin only)",
+          description: "Retrieve all AppEx B submissions with student information. Can filter by status.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "status",
+              in: "query",
+              schema: { type: "string" },
+              description: "Optional status filter"
+            }
+          ],
+          responses: {
+            "200": {
+              description: "AppEx B submissions retrieved successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      data: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            id: { type: "string" },
+                            name: { type: "string" },
+                            degreeProgram: { type: "string" },
+                            email: { type: "string", format: "email" },
+                            semester: { type: "string" },
+                            contactNo: { type: "string" },
+                            preferredField: { type: "string" },
+                            agreementAccepted: { type: "boolean" },
+                            status: { type: "string" },
+                            student: {
+                              type: "object",
+                              properties: {
+                                id: { type: "string" },
+                                name: { type: "string" },
+                                email: { type: "string", format: "email" },
+                                regNo: { type: "string" }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "401": { description: "Authorization header with Bearer token is required" },
+            "403": { description: "Admin access required" },
+            "500": { description: "Internal server error" }
+          }
+        },
+        patch: {
+          tags: ["Admin"],
+          summary: "Update AppEx B extended details (Admin only)",
+          description: "Update extended details of an AppEx B submission including company name, internship role, supervisor information, duration, and dates.",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["studentId"],
+                  properties: {
+                    studentId: { type: "string", description: "Student ID (required)" },
+                    companyName: { type: "string", description: "Company name (optional)" },
+                    internshipRole: { type: "string", description: "Internship role/position (optional)" },
+                    facultySupervisorNameDesig: { type: "string", description: "Faculty supervisor name and designation (optional)" },
+                    siteSupervisorNameDesig: { type: "string", description: "Site supervisor name and designation (optional)" },
+                    durationWeeks: { type: "number", description: "Duration in weeks (optional)" },
+                    startDate: { type: "string", format: "date", description: "Start date (optional)" },
+                    endDate: { type: "string", format: "date", description: "End date (optional)" }
+                  }
+                }
+              }
+            }
+          },
+          responses: {
+            "200": {
+              description: "AppEx B updated successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      internshipAssignment: {
+                        type: "object",
+                        description: "Updated AppEx B submission"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "400": { description: "Missing studentId, invalid durationWeeks, or no fields to update" },
+            "401": { description: "Authorization header with Bearer token is required" },
+            "403": { description: "Admin access required" },
+            "404": { description: "AppEx B (Internship Assignment) not found for student" },
             "500": { description: "Internal server error" }
           }
         }
