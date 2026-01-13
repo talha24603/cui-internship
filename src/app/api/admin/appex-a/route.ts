@@ -119,6 +119,29 @@ export async function PATCH(req: Request) {
       data: { status },
     });
 
+    // If approved, update the internship with start and end dates
+    if (status === 'approved') {
+      // Find the student's internship
+      const internship = await prisma.internship.findFirst({
+        where: {
+          studentId: appexA.student.id,
+        },
+      });
+
+      if (internship) {
+        // Update internship with dates from AppEx A
+        await prisma.internship.update({
+          where: { id: internship.id },
+          data: {
+            startDate: appexA.startDate,
+            endDate: appexA.endDate,
+            status: 'APPROVED',
+            internshipApprovalId: appexA.id,
+          },
+        });
+      }
+    }
+
     return NextResponse.json({
       message: `AppEx A ${status} successfully`,
       appexA: updatedAppexA,

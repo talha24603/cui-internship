@@ -1,6 +1,66 @@
 import { NextResponse } from "next/server";
 import prisma from "@/utils/prisma";
 
+// GET /api/admin/appex-b - Get all AppEx B (InternshipAssignment) submissions (Admin only)
+export async function GET(req: Request) {
+  try {
+    const userRole = req.headers.get("x-user-role");
+
+    if (userRole !== "ADMIN") {
+      return NextResponse.json(
+        { error: "Only admins can view AppEx B submissions" },
+        { status: 403 }
+      );
+    }
+
+    const url = new URL(req.url);
+    const status = url.searchParams.get("status"); // Optional status filter
+
+    const where: any = {};
+
+    if (status) {
+      where.status = status;
+    }
+
+    const internshipAssignments = await prisma.internshipAssignment.findMany({
+      where,
+      select: {
+        id: true,
+        name: true,
+        degreeProgram: true,
+        email: true,
+        semester: true,
+        contactNo: true,
+        preferredField: true,
+        agreementAccepted: true,
+        status: true,
+        student: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            regNo: true,
+          },
+        },
+      },
+      orderBy: {
+        id: "desc",
+      },
+    });
+
+    return NextResponse.json({
+      message: "AppEx B submissions retrieved successfully",
+      data: internshipAssignments,
+    });
+  } catch (error) {
+    console.error("Admin get AppEx B error:", error);
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 }
+    );
+  }
+}
+
 // PATCH /api/admin/appex-b - Update AppEx B extended details (Admin only)
 export async function PATCH(req: Request) {
   try {
