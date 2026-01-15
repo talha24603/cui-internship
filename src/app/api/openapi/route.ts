@@ -2522,6 +2522,136 @@ export async function GET() {
           }
         }
       },
+      "/api/admin/search-faculty": {
+        get: {
+          tags: ["Admin"],
+          summary: "Search faculty members (Admin only)",
+          description: "Search for faculty members by name, email, department, or designation. Returns up to 50 results. If no search query is provided, returns all faculty members.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "q",
+              in: "query",
+              schema: { type: "string" },
+              description: "Search query (searches in name, email, department, designation). Can also use 'search' parameter."
+            },
+            {
+              name: "search",
+              in: "query",
+              schema: { type: "string" },
+              description: "Alternative search query parameter (same as 'q')"
+            }
+          ],
+          responses: {
+            "200": {
+              description: "Faculty search completed successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      data: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            id: { type: "string" },
+                            name: { type: "string" },
+                            email: { type: "string", format: "email" },
+                            verified: { type: "boolean" },
+                            createdAt: { type: "string", format: "date-time" },
+                            facultyProfile: {
+                              type: "object",
+                              nullable: true,
+                              properties: {
+                                department: { type: "string" },
+                                designation: { type: "string" },
+                                phone: { type: "string" },
+                                office: { type: "string" }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      count: { type: "number", description: "Number of results returned" }
+                    }
+                  }
+                }
+              }
+            },
+            "401": { description: "Authorization header with Bearer token is required" },
+            "403": { description: "Admin access required" },
+            "500": { description: "Internal server error" }
+          }
+        }
+      },
+      "/api/admin/search-site-supervisors": {
+        get: {
+          tags: ["Admin"],
+          summary: "Search site supervisors (Admin only)",
+          description: "Search for site supervisors by name, email, or company name. Returns up to 50 results. If no search query is provided, returns all site supervisors.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "q",
+              in: "query",
+              schema: { type: "string" },
+              description: "Search query (searches in name, email, company name, company email). Can also use 'search' parameter."
+            },
+            {
+              name: "search",
+              in: "query",
+              schema: { type: "string" },
+              description: "Alternative search query parameter (same as 'q')"
+            }
+          ],
+          responses: {
+            "200": {
+              description: "Site supervisors search completed successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      data: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            id: { type: "string" },
+                            name: { type: "string" },
+                            email: { type: "string", format: "email" },
+                            verified: { type: "boolean" },
+                            createdAt: { type: "string", format: "date-time" },
+                            company: {
+                              type: "object",
+                              nullable: true,
+                              properties: {
+                                id: { type: "string" },
+                                name: { type: "string" },
+                                email: { type: "string", format: "email" },
+                                phone: { type: "string" },
+                                industry: { type: "string" }
+                              },
+                              description: "Company the supervisor is assigned to"
+                            }
+                          }
+                        }
+                      },
+                      count: { type: "number", description: "Number of results returned" }
+                    }
+                  }
+                }
+              }
+            },
+            "401": { description: "Authorization header with Bearer token is required" },
+            "403": { description: "Admin access required" },
+            "500": { description: "Internal server error" }
+          }
+        }
+      },
       "/api/admin/edit-site-supervisor": {
         put: {
           tags: ["Admin"],
