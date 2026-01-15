@@ -52,6 +52,8 @@ model User {
   InternshipApproval   InternshipApproval?
   InternshipAssignment InternshipAssignment?
   InternshipProposal   InternshipProposal?
+  facultySupervisorAssignments InternshipAssignment[] @relation("FacultySupervisorAssignments")
+  siteSupervisorAssignments    InternshipAssignment[] @relation("SiteSupervisorAssignments")
 }
 
 model RefreshToken {
@@ -195,6 +197,10 @@ model InternshipAssignment {
   endDate                    DateTime?
   agreementAccepted          Boolean?
   status                     String?
+  facultyId                  String?
+  faculty                    User?   @relation("FacultySupervisorAssignments", fields: [facultyId], references: [id])
+  siteId                     String?
+  site                       User?   @relation("SiteSupervisorAssignments", fields: [siteId], references: [id])
 }
 
 model InternshipProposal {

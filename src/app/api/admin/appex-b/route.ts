@@ -47,6 +47,20 @@ export async function GET(req: Request) {
               regNo: true,
             },
           },
+          faculty: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          site: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
         },
       });
 
@@ -90,6 +104,20 @@ export async function GET(req: Request) {
             regNo: true,
           },
         },
+        faculty: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        site: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
       },
       orderBy: {
         id: "desc",
@@ -131,6 +159,8 @@ export async function PATCH(req: Request) {
       durationWeeks,
       startDate,
       endDate,
+      facultyId,
+      siteId,
     } = body;
 
     if (!studentId) {
@@ -159,6 +189,64 @@ export async function PATCH(req: Request) {
     }
     if (startDate !== undefined) updateData.startDate = startDate;
     if (endDate !== undefined) updateData.endDate = endDate;
+
+    // Validate and update facultyId if provided
+    if (facultyId !== undefined) {
+      if (facultyId === null) {
+        updateData.facultyId = null;
+      } else {
+        // Validate that facultyId references a User with role FACULTY
+        const facultyUser = await prisma.user.findUnique({
+          where: { id: facultyId },
+          select: { id: true, role: true },
+        });
+
+        if (!facultyUser) {
+          return NextResponse.json(
+            { error: "facultyId does not reference a valid user" },
+            { status: 400 }
+          );
+        }
+
+        if (facultyUser.role !== "FACULTY") {
+          return NextResponse.json(
+            { error: "facultyId must reference a user with role FACULTY" },
+            { status: 400 }
+          );
+        }
+
+        updateData.facultyId = facultyId;
+      }
+    }
+
+    // Validate and update siteId if provided
+    if (siteId !== undefined) {
+      if (siteId === null) {
+        updateData.siteId = null;
+      } else {
+        // Validate that siteId references a User with role SITE_SUPERVISOR
+        const siteUser = await prisma.user.findUnique({
+          where: { id: siteId },
+          select: { id: true, role: true },
+        });
+
+        if (!siteUser) {
+          return NextResponse.json(
+            { error: "siteId does not reference a valid user" },
+            { status: 400 }
+          );
+        }
+
+        if (siteUser.role !== "SITE_SUPERVISOR") {
+          return NextResponse.json(
+            { error: "siteId must reference a user with role SITE_SUPERVISOR" },
+            { status: 400 }
+          );
+        }
+
+        updateData.siteId = siteId;
+      }
+    }
 
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json(

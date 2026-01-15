@@ -31,6 +31,8 @@ export async function POST(req: Request) {
       contactNo,
       preferredField,
       agreementAccepted,
+      facultyId,
+      siteId,
     } = body;
 
     // Validate required fields
@@ -69,27 +71,76 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid email format" }, { status: 400 });
     }
 
+    // Validate facultyId if provided
+    if (facultyId !== undefined && facultyId !== null) {
+      const facultyUser = await prisma.user.findUnique({
+        where: { id: facultyId },
+        select: { id: true, role: true },
+      });
+
+      if (!facultyUser) {
+        return NextResponse.json(
+          { error: "facultyId does not reference a valid user" },
+          { status: 400 }
+        );
+      }
+
+      if (facultyUser.role !== "FACULTY") {
+        return NextResponse.json(
+          { error: "facultyId must reference a user with role FACULTY" },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Validate siteId if provided
+    if (siteId !== undefined && siteId !== null) {
+      const siteUser = await prisma.user.findUnique({
+        where: { id: siteId },
+        select: { id: true, role: true },
+      });
+
+      if (!siteUser) {
+        return NextResponse.json(
+          { error: "siteId does not reference a valid user" },
+          { status: 400 }
+        );
+      }
+
+      if (siteUser.role !== "SITE_SUPERVISOR") {
+        return NextResponse.json(
+          { error: "siteId must reference a user with role SITE_SUPERVISOR" },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Prepare update/create data
+    const assignmentData: any = {
+      name,
+      degreeProgram,
+      email,
+      semester,
+      contactNo,
+      preferredField,
+      agreementAccepted,
+    };
+
+    // Add supervisor IDs if provided
+    if (facultyId !== undefined) {
+      assignmentData.facultyId = facultyId;
+    }
+    if (siteId !== undefined) {
+      assignmentData.siteId = siteId;
+    }
+
     // Use upsert to create or update InternshipAssignment
     const internshipAssignment = await prisma.internshipAssignment.upsert({
       where: { studentId: userId }, // unique field to check if record exists
-      update: {
-        name,
-        degreeProgram,
-        email,
-        semester,
-        contactNo,
-        preferredField,
-        agreementAccepted,
-      },
+      update: assignmentData,
       create: {
         studentId: userId,
-        name,
-        degreeProgram,
-        email,
-        semester,
-        contactNo,
-        preferredField,
-        agreementAccepted,
+        ...assignmentData,
       },
     });
 

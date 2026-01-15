@@ -1367,7 +1367,9 @@ export async function GET() {
                     semester: { type: "string", description: "Semester" },
                     contactNo: { type: "string", description: "Contact number" },
                     preferredField: { type: "string", description: "Preferred field of internship" },
-                    agreementAccepted: { type: "boolean", description: "Whether agreement is accepted" }
+                    agreementAccepted: { type: "boolean", description: "Whether agreement is accepted" },
+                    facultyId: { type: "string", description: "Optional: Faculty supervisor user ID (must have role FACULTY)" },
+                    siteId: { type: "string", description: "Optional: Site supervisor user ID (must have role SITE_SUPERVISOR)" }
                   }
                 }
               }
@@ -1401,7 +1403,7 @@ export async function GET() {
                 }
               }
             },
-            "400": { description: "Missing required fields, invalid email format, or agreementAccepted is not boolean" },
+            "400": { description: "Missing required fields, invalid email format, agreementAccepted is not boolean, or invalid supervisor IDs (facultyId must reference FACULTY role, siteId must reference SITE_SUPERVISOR role)" },
             "401": { description: "User information not found or invalid token" },
             "500": { description: "Internal server error" }
           }
@@ -2251,9 +2253,15 @@ export async function GET() {
         get: {
           tags: ["Admin"],
           summary: "Get all AppEx B (Internship Assignment) submissions (Admin only)",
-          description: "Retrieve all AppEx B submissions with student information. Can filter by status.",
+          description: "Retrieve all AppEx B submissions with student information. Can filter by status. If 'id' parameter is provided, returns a single AppEx B submission with full details including supervisor information.",
           security: [{ bearerAuth: [] }],
           parameters: [
+            {
+              name: "id",
+              in: "query",
+              schema: { type: "string" },
+              description: "Optional: Get specific AppEx B by ID"
+            },
             {
               name: "status",
               in: "query",
@@ -2282,6 +2290,13 @@ export async function GET() {
                             semester: { type: "string" },
                             contactNo: { type: "string" },
                             preferredField: { type: "string" },
+                            companyName: { type: "string", nullable: true, description: "Company name (when id parameter is provided)" },
+                            internshipRole: { type: "string", nullable: true, description: "Internship role/position (when id parameter is provided)" },
+                            facultySupervisorNameDesig: { type: "string", nullable: true, description: "Faculty supervisor name and designation (when id parameter is provided)" },
+                            siteSupervisorNameDesig: { type: "string", nullable: true, description: "Site supervisor name and designation (when id parameter is provided)" },
+                            durationWeeks: { type: "number", nullable: true, description: "Duration in weeks (when id parameter is provided)" },
+                            startDate: { type: "string", format: "date-time", nullable: true, description: "Start date (when id parameter is provided)" },
+                            endDate: { type: "string", format: "date-time", nullable: true, description: "End date (when id parameter is provided)" },
                             agreementAccepted: { type: "boolean" },
                             status: { type: "string" },
                             student: {
@@ -2292,6 +2307,26 @@ export async function GET() {
                                 email: { type: "string", format: "email" },
                                 regNo: { type: "string" }
                               }
+                            },
+                            faculty: {
+                              type: "object",
+                              nullable: true,
+                              properties: {
+                                id: { type: "string" },
+                                name: { type: "string" },
+                                email: { type: "string", format: "email" }
+                              },
+                              description: "Faculty supervisor details (if assigned)"
+                            },
+                            site: {
+                              type: "object",
+                              nullable: true,
+                              properties: {
+                                id: { type: "string" },
+                                name: { type: "string" },
+                                email: { type: "string", format: "email" }
+                              },
+                              description: "Site supervisor details (if assigned)"
                             }
                           }
                         }
@@ -2303,6 +2338,7 @@ export async function GET() {
             },
             "401": { description: "Authorization header with Bearer token is required" },
             "403": { description: "Admin access required" },
+            "404": { description: "AppEx B not found (when id parameter is provided)" },
             "500": { description: "Internal server error" }
           }
         },
@@ -2322,8 +2358,10 @@ export async function GET() {
                     studentId: { type: "string", description: "Student ID (required)" },
                     companyName: { type: "string", description: "Company name (optional)" },
                     internshipRole: { type: "string", description: "Internship role/position (optional)" },
-                    facultySupervisorNameDesig: { type: "string", description: "Faculty supervisor name and designation (optional)" },
-                    siteSupervisorNameDesig: { type: "string", description: "Site supervisor name and designation (optional)" },
+                    facultySupervisorNameDesig: { type: "string", description: "Faculty supervisor name and designation (optional, for backward compatibility)" },
+                    siteSupervisorNameDesig: { type: "string", description: "Site supervisor name and designation (optional, for backward compatibility)" },
+                    facultyId: { type: "string", nullable: true, description: "Optional: Faculty supervisor user ID (must have role FACULTY). Set to null to remove assignment." },
+                    siteId: { type: "string", nullable: true, description: "Optional: Site supervisor user ID (must have role SITE_SUPERVISOR). Set to null to remove assignment." },
                     durationWeeks: { type: "number", description: "Duration in weeks (optional)" },
                     startDate: { type: "string", format: "date", description: "Start date (optional)" },
                     endDate: { type: "string", format: "date", description: "End date (optional)" }
@@ -2350,7 +2388,7 @@ export async function GET() {
                 }
               }
             },
-            "400": { description: "Missing studentId, invalid durationWeeks, or no fields to update" },
+            "400": { description: "Missing studentId, invalid durationWeeks, invalid supervisor IDs (facultyId must reference FACULTY role, siteId must reference SITE_SUPERVISOR role), or no fields to update" },
             "401": { description: "Authorization header with Bearer token is required" },
             "403": { description: "Admin access required" },
             "404": { description: "AppEx B (Internship Assignment) not found for student" },
