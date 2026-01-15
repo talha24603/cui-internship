@@ -191,8 +191,8 @@ model InternshipAssignment {
   facultySupervisorNameDesig String?
   siteSupervisorNameDesig    String?
   durationWeeks              Int?
-  startDate                  String?
-  endDate                    String?
+  startDate                  DateTime?
+  endDate                    DateTime?
   agreementAccepted          Boolean?
   status                     String?
 }

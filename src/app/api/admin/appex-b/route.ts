@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/utils/prisma";
 
 // GET /api/admin/appex-b - Get all AppEx B (InternshipAssignment) submissions (Admin only)
+// GET /api/admin/appex-b?id=xxx - Get a specific AppEx B by ID (Admin only)
 export async function GET(req: Request) {
   try {
     const userRole = req.headers.get("x-user-role");
@@ -14,8 +15,55 @@ export async function GET(req: Request) {
     }
 
     const url = new URL(req.url);
+    const id = url.searchParams.get("id"); // Optional ID to get specific appex-b
     const status = url.searchParams.get("status"); // Optional status filter
 
+    // If ID is provided, return specific appex-b
+    if (id) {
+      const internshipAssignment = await prisma.internshipAssignment.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          name: true,
+          degreeProgram: true,
+          email: true,
+          semester: true,
+          contactNo: true,
+          preferredField: true,
+          companyName: true,
+          internshipRole: true,
+          facultySupervisorNameDesig: true,
+          siteSupervisorNameDesig: true,
+          durationWeeks: true,
+          startDate: true,
+          endDate: true,
+          agreementAccepted: true,
+          status: true,
+          student: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              regNo: true,
+            },
+          },
+        },
+      });
+
+      if (!internshipAssignment) {
+        return NextResponse.json(
+          { error: "AppEx B not found" },
+          { status: 404 }
+        );
+      }
+
+      return NextResponse.json({
+        message: "AppEx B retrieved successfully",
+        data: internshipAssignment,
+      });
+    }
+
+    // Otherwise, return all appex-b submissions
     const where: any = {};
 
     if (status) {
