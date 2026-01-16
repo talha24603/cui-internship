@@ -111,33 +111,12 @@ export async function PATCH(req: Request) {
     }
 
     // Update AppEx A status
+    // Note: Only admin approval of AppEx A will approve the internship
+    // Faculty approval only updates AppEx A status, not the internship
     const updatedAppexA = await prisma.internshipApproval.update({
       where: { id: appexAId },
       data: { status }
     });
-
-    // If approved, update the internship with start and end dates
-    if (status === 'approved') {
-      // Find the student's internship
-      const internship = await prisma.internship.findFirst({
-        where: {
-          studentId: appexA.studentId,
-        },
-      });
-
-      if (internship) {
-        // Update internship with dates from AppEx A
-        await prisma.internship.update({
-          where: { id: internship.id },
-          data: {
-            startDate: appexA.startDate,
-            endDate: appexA.endDate,
-            status: 'APPROVED',
-            internshipApprovalId: appexA.id,
-          },
-        });
-      }
-    }
 
     // Log the approval/rejection (you might want to create a separate table for this)
     console.log(`${userRole} ${userId} ${status} AppEx A for student ${appexA.student.name} (${appexA.student.regNo}). Comments: ${comments || 'None'}`);

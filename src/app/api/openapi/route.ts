@@ -5,7 +5,7 @@ export async function GET() {
     openapi: "3.0.3",
     info: {
       title: "CUI Internship API",
-      version: "1.8.0",
+      version: "1.10.0",
       description: "OpenAPI specification for CUI Internship API - Auth, Admin, Faculty, Student, Site Supervisor, and Dropdown endpoints. All protected routes use middleware-based authentication with Bearer tokens.",
     },
     servers: [
@@ -1409,6 +1409,139 @@ export async function GET() {
           }
         }
       },
+      "/api/student/appex-b-verification": {
+        get: {
+          tags: ["Student"],
+          summary: "Get student's AppEx B assignment for verification",
+          description: "Retrieve the authenticated student's AppEx B assignment with current verification status from both faculty and student.",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            "200": {
+              description: "AppEx B assignment retrieved successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      data: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          name: { type: "string" },
+                          degreeProgram: { type: "string" },
+                          email: { type: "string", format: "email" },
+                          semester: { type: "string" },
+                          contactNo: { type: "string" },
+                          preferredField: { type: "string" },
+                          companyName: { type: "string", nullable: true },
+                          internshipRole: { type: "string", nullable: true },
+                          facultySupervisorNameDesig: { type: "string", nullable: true },
+                          siteSupervisorNameDesig: { type: "string", nullable: true },
+                          durationWeeks: { type: "integer", nullable: true },
+                          startDate: { type: "string", format: "date-time", nullable: true },
+                          endDate: { type: "string", format: "date-time", nullable: true },
+                          agreementAccepted: { type: "boolean", nullable: true },
+                          status: { 
+                            type: "string", 
+                            enum: ["PENDING_VERIFICATION", "FACULTY_VERIFIED", "STUDENT_VERIFIED", "BOTH_VERIFIED", "CHANGES_REQUESTED"]
+                          },
+                          facultyVerified: { type: "boolean", nullable: true },
+                          facultyVerifiedAt: { type: "string", format: "date-time", nullable: true },
+                          facultyVerificationComments: { type: "string", nullable: true },
+                          studentVerified: { type: "boolean", nullable: true },
+                          studentVerifiedAt: { type: "string", format: "date-time", nullable: true },
+                          studentVerificationComments: { type: "string", nullable: true },
+                          faculty: {
+                            type: "object",
+                            nullable: true,
+                            properties: {
+                              id: { type: "string" },
+                              name: { type: "string" },
+                              email: { type: "string", format: "email" }
+                            }
+                          },
+                          site: {
+                            type: "object",
+                            nullable: true,
+                            properties: {
+                              id: { type: "string" },
+                              name: { type: "string" },
+                              email: { type: "string", format: "email" }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "401": { description: "User information not found or invalid token" },
+            "403": { description: "Only students can access their AppEx B verification" },
+            "404": { description: "AppEx B assignment not found" },
+            "500": { description: "Internal server error" }
+          }
+        },
+        patch: {
+          tags: ["Student"],
+          summary: "Verify student's AppEx B assignment (approve or request changes)",
+          description: "Student can verify their own AppEx B assignment by either approving it or requesting changes. This action updates the student verification status and recalculates the overall assignment status. When both faculty and student approve (status becomes BOTH_VERIFIED), the faculty and site supervisors from AppEx B are automatically linked to the student's internship.",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["action"],
+                  properties: {
+                    action: { 
+                      type: "string", 
+                      enum: ["approve", "request_changes"], 
+                      description: "Verification action: 'approve' to approve, 'request_changes' to request modifications" 
+                    },
+                    comments: { type: "string", description: "Optional comments for the verification" }
+                  }
+                }
+              }
+            }
+          },
+          responses: {
+            "200": {
+              description: "AppEx B verified successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      data: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          studentVerified: { type: "boolean" },
+                          studentVerifiedAt: { type: "string", format: "date-time" },
+                          studentVerificationComments: { type: "string", nullable: true },
+                          status: { 
+                            type: "string", 
+                            enum: ["PENDING_VERIFICATION", "FACULTY_VERIFIED", "STUDENT_VERIFIED", "BOTH_VERIFIED", "CHANGES_REQUESTED"]
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "400": { description: "Missing required fields or invalid action" },
+            "401": { description: "User information not found or invalid token" },
+            "403": { description: "Only students can verify their AppEx B" },
+            "404": { description: "AppEx B assignment not found" },
+            "500": { description: "Internal server error" }
+          }
+        }
+      },
       "/api/student/appex-c": {
         post: {
           tags: ["Student"],
@@ -1830,6 +1963,7 @@ export async function GET() {
         patch: {
           tags: ["Faculty"],
           summary: "Approve or reject AppEx-A submission (Faculty/Admin only)",
+          description: "Note: Faculty approval of AppEx A only updates the AppEx A status. Only admin approval of AppEx A will approve the internship.",
           security: [{ bearerAuth: [] }],
           requestBody: {
             required: true,
@@ -1939,6 +2073,176 @@ export async function GET() {
             "401": { description: "User information not found or invalid token" },
             "403": { description: "Only faculty and admin can access AppEx-A details" },
             "404": { description: "AppEx-A submission not found" },
+            "500": { description: "Internal server error" }
+          }
+        }
+      },
+      "/api/faculty/appex-b-verification": {
+        get: {
+          tags: ["Faculty"],
+          summary: "Get all AppEx B assignments assigned to faculty supervisor for verification",
+          description: "Retrieve AppEx B assignments that are assigned to the authenticated faculty supervisor. Can filter by verification status.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "status",
+              in: "query",
+              schema: { 
+                type: "string", 
+                enum: ["PENDING_VERIFICATION", "FACULTY_VERIFIED", "STUDENT_VERIFIED", "BOTH_VERIFIED", "CHANGES_REQUESTED", "all"] 
+              },
+              description: "Filter by verification status"
+            },
+            {
+              name: "page",
+              in: "query",
+              schema: { type: "integer", minimum: 1 },
+              description: "Page number for pagination"
+            },
+            {
+              name: "limit",
+              in: "query",
+              schema: { type: "integer", minimum: 1, maximum: 100 },
+              description: "Number of items per page"
+            }
+          ],
+          responses: {
+            "200": {
+              description: "AppEx B assignments retrieved successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      data: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            id: { type: "string" },
+                            name: { type: "string" },
+                            degreeProgram: { type: "string" },
+                            email: { type: "string", format: "email" },
+                            semester: { type: "string" },
+                            contactNo: { type: "string" },
+                            preferredField: { type: "string" },
+                            companyName: { type: "string", nullable: true },
+                            internshipRole: { type: "string", nullable: true },
+                            facultySupervisorNameDesig: { type: "string", nullable: true },
+                            siteSupervisorNameDesig: { type: "string", nullable: true },
+                            durationWeeks: { type: "integer", nullable: true },
+                            startDate: { type: "string", format: "date-time", nullable: true },
+                            endDate: { type: "string", format: "date-time", nullable: true },
+                            agreementAccepted: { type: "boolean", nullable: true },
+                            status: { type: "string" },
+                            facultyVerified: { type: "boolean", nullable: true },
+                            facultyVerifiedAt: { type: "string", format: "date-time", nullable: true },
+                            facultyVerificationComments: { type: "string", nullable: true },
+                            studentVerified: { type: "boolean", nullable: true },
+                            studentVerifiedAt: { type: "string", format: "date-time", nullable: true },
+                            studentVerificationComments: { type: "string", nullable: true },
+                            calculatedStatus: { 
+                              type: "string", 
+                              enum: ["PENDING_VERIFICATION", "FACULTY_VERIFIED", "STUDENT_VERIFIED", "BOTH_VERIFIED", "CHANGES_REQUESTED"],
+                              description: "Calculated overall verification status"
+                            },
+                            student: {
+                              type: "object",
+                              properties: {
+                                id: { type: "string" },
+                                name: { type: "string" },
+                                email: { type: "string", format: "email" },
+                                regNo: { type: "string" }
+                              }
+                            },
+                            site: {
+                              type: "object",
+                              nullable: true,
+                              properties: {
+                                id: { type: "string" },
+                                name: { type: "string" },
+                                email: { type: "string", format: "email" }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      pagination: {
+                        type: "object",
+                        properties: {
+                          page: { type: "integer" },
+                          limit: { type: "integer" },
+                          total: { type: "integer" },
+                          pages: { type: "integer" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "401": { description: "User information not found or invalid token" },
+            "403": { description: "Only faculty can access AppEx B verifications" },
+            "500": { description: "Internal server error" }
+          }
+        },
+        patch: {
+          tags: ["Faculty"],
+          summary: "Verify AppEx B assignment (approve or request changes)",
+          description: "Faculty supervisor can verify an AppEx B assignment by either approving it or requesting changes. This action updates the faculty verification status and recalculates the overall assignment status. When both faculty and student approve (status becomes BOTH_VERIFIED), the faculty and site supervisors from AppEx B are automatically linked to the student's internship.",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["assignmentId", "action"],
+                  properties: {
+                    assignmentId: { type: "string", description: "AppEx B assignment ID" },
+                    action: { 
+                      type: "string", 
+                      enum: ["approve", "request_changes"], 
+                      description: "Verification action: 'approve' to approve, 'request_changes' to request modifications" 
+                    },
+                    comments: { type: "string", description: "Optional comments for the verification" }
+                  }
+                }
+              }
+            }
+          },
+          responses: {
+            "200": {
+              description: "AppEx B verified successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      data: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          facultyVerified: { type: "boolean" },
+                          facultyVerifiedAt: { type: "string", format: "date-time" },
+                          facultyVerificationComments: { type: "string", nullable: true },
+                          status: { 
+                            type: "string", 
+                            enum: ["PENDING_VERIFICATION", "FACULTY_VERIFIED", "STUDENT_VERIFIED", "BOTH_VERIFIED", "CHANGES_REQUESTED"]
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "400": { description: "Missing required fields or invalid action" },
+            "401": { description: "User information not found or invalid token" },
+            "403": { description: "Only faculty can verify AppEx B or assignment not assigned to this faculty" },
+            "404": { description: "AppEx B assignment not found" },
             "500": { description: "Internal server error" }
           }
         }
@@ -2192,7 +2496,7 @@ export async function GET() {
         patch: {
           tags: ["Admin"],
           summary: "Approve or reject AppEx-A submission (Admin only)",
-          description: "Allows admins to approve or reject AppEx-A submissions. Can update status even if already processed.",
+          description: "Allows admins to approve or reject AppEx-A submissions. Can update status even if already processed. When admin approves AppEx A, the student's internship is automatically approved and linked with start/end dates from AppEx A. Note: Only admin approval of AppEx A approves the internship; faculty approval only updates AppEx A status.",
           security: [{ bearerAuth: [] }],
           requestBody: {
             required: true,

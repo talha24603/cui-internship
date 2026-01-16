@@ -258,6 +258,43 @@ export async function PATCH(req: Request) {
       data: { status: newStatus },
     });
 
+    // If AppEx B is fully verified by both parties, link supervisors to internship
+    if (newStatus === "BOTH_VERIFIED") {
+      // Find the student's internship
+      const internship = await prisma.internship.findFirst({
+        where: {
+          studentId: updatedAssignment.studentId,
+        },
+      });
+
+      if (internship) {
+        // Prepare update data - only include fields that are present in AppEx B
+        const internshipUpdateData: {
+          facultyId?: string | null;
+          siteId?: string | null;
+          internshipAssignmentId: string;
+        } = {
+          internshipAssignmentId: assignmentId,
+        };
+
+        // Only update facultyId if it exists in AppEx B
+        if (updatedAssignment.facultyId !== null && updatedAssignment.facultyId !== undefined) {
+          internshipUpdateData.facultyId = updatedAssignment.facultyId;
+        }
+
+        // Only update siteId if it exists in AppEx B
+        if (updatedAssignment.siteId !== null && updatedAssignment.siteId !== undefined) {
+          internshipUpdateData.siteId = updatedAssignment.siteId;
+        }
+
+        // Update internship with supervisors from AppEx B
+        await prisma.internship.update({
+          where: { id: internship.id },
+          data: internshipUpdateData,
+        });
+      }
+    }
+
     return NextResponse.json({
       message: `AppEx B ${action === "approve" ? "approved" : "changes requested"} successfully`,
       data: {
