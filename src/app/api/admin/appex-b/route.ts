@@ -39,6 +39,12 @@ export async function GET(req: Request) {
           endDate: true,
           agreementAccepted: true,
           status: true,
+          facultyVerified: true,
+          facultyVerifiedAt: true,
+          facultyVerificationComments: true,
+          studentVerified: true,
+          studentVerifiedAt: true,
+          studentVerificationComments: true,
           student: {
             select: {
               id: true,
@@ -96,6 +102,12 @@ export async function GET(req: Request) {
         preferredField: true,
         agreementAccepted: true,
         status: true,
+        facultyVerified: true,
+        facultyVerifiedAt: true,
+        facultyVerificationComments: true,
+        studentVerified: true,
+        studentVerifiedAt: true,
+        studentVerificationComments: true,
         student: {
           select: {
             id: true,
@@ -257,7 +269,19 @@ export async function PATCH(req: Request) {
 
     const existingAssignment = await prisma.internshipAssignment.findUnique({
       where: { studentId },
-      select: { id: true },
+      select: {
+        id: true,
+        companyName: true,
+        internshipRole: true,
+        facultySupervisorNameDesig: true,
+        siteSupervisorNameDesig: true,
+        durationWeeks: true,
+        startDate: true,
+        endDate: true,
+        facultyId: true,
+        siteId: true,
+        status: true,
+      },
     });
 
     if (!existingAssignment) {
@@ -267,9 +291,64 @@ export async function PATCH(req: Request) {
       );
     }
 
+    // Check if significant data changes are being made
+    // If admin is updating key fields, reset verifications
+    const significantFields = [
+      "companyName",
+      "internshipRole",
+      "facultySupervisorNameDesig",
+      "siteSupervisorNameDesig",
+      "durationWeeks",
+      "startDate",
+      "endDate",
+      "facultyId",
+      "siteId",
+    ];
+    const hasSignificantChanges = significantFields.some(
+      (field) => updateData[field] !== undefined
+    );
+
+    // If significant changes, reset verification fields and set status to PENDING_VERIFICATION
+    if (hasSignificantChanges) {
+      updateData.facultyVerified = null;
+      updateData.facultyVerifiedAt = null;
+      updateData.facultyVerificationComments = null;
+      updateData.studentVerified = null;
+      updateData.studentVerifiedAt = null;
+      updateData.studentVerificationComments = null;
+      updateData.status = "PENDING_VERIFICATION";
+    } else if (!updateData.status && !existingAssignment.status) {
+      // If no status is being set and current status is null, set to PENDING_VERIFICATION
+      updateData.status = "PENDING_VERIFICATION";
+    }
+
     const updatedAssignment = await prisma.internshipAssignment.update({
       where: { studentId },
       data: updateData,
+      include: {
+        student: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            regNo: true,
+          },
+        },
+        faculty: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        site: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
     });
 
     return NextResponse.json({

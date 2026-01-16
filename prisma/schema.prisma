@@ -201,6 +201,13 @@ model InternshipAssignment {
   faculty                    User?   @relation("FacultySupervisorAssignments", fields: [facultyId], references: [id])
   siteId                     String?
   site                       User?   @relation("SiteSupervisorAssignments", fields: [siteId], references: [id])
+  // Verification fields
+  facultyVerified             Boolean?
+  facultyVerifiedAt           DateTime?
+  facultyVerificationComments String?
+  studentVerified             Boolean?
+  studentVerifiedAt           DateTime?
+  studentVerificationComments String?
 }
 
 model InternshipProposal {
