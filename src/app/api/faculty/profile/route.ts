@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import prisma from "@/utils/prisma";
 
 // GET method - Retrieve faculty profile
 export async function GET(req: Request) {

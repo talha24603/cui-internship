@@ -52,9 +52,6 @@ export async function GET(req: Request) {
 
     const url = new URL(req.url);
     const status = url.searchParams.get("status"); // Optional status filter
-    const page = parseInt(url.searchParams.get("page") || "1");
-    const limit = parseInt(url.searchParams.get("limit") || "10");
-    const skip = (page - 1) * limit;
 
     // Build where clause - only assignments assigned to this faculty
     const whereClause: any = {
@@ -88,32 +85,27 @@ export async function GET(req: Request) {
       }
     }
 
-    const [assignments, total] = await Promise.all([
-      prisma.internshipAssignment.findMany({
-        where: whereClause,
-        include: {
-          student: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              regNo: true,
-            },
-          },
-          site: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-            },
+    const assignments = await prisma.internshipAssignment.findMany({
+      where: whereClause,
+      include: {
+        student: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            regNo: true,
           },
         },
-        orderBy: { id: "desc" },
-        skip,
-        take: limit,
-      }),
-      prisma.internshipAssignment.count({ where: whereClause }),
-    ]);
+        site: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: { id: "desc" },
+    });
 
     // Calculate status for each assignment
     const assignmentsWithStatus = assignments.map((assignment) => ({
@@ -127,12 +119,6 @@ export async function GET(req: Request) {
     return NextResponse.json({
       message: "AppEx B assignments retrieved successfully",
       data: assignmentsWithStatus,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit),
-      },
     });
   } catch (error) {
     console.error("Get AppEx B verifications error:", error);

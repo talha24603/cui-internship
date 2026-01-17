@@ -951,6 +951,79 @@ export async function GET() {
             "500": { description: "Internal server error" },
           },
         },
+        patch: {
+          tags: ["Faculty"],
+          summary: "Update faculty profile partially (Faculty only)",
+          description: "Partially update faculty profile fields. Only provided fields will be updated. Profile must exist (use POST to create).",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    department: { type: "string", description: "Faculty department (optional)" },
+                    designation: { type: "string", description: "Faculty designation/position (optional)" },
+                    phone: { type: "string", description: "Faculty phone number (optional)" },
+                    office: { type: "string", description: "Faculty office location (optional)" },
+                    bio: { type: "string", description: "Faculty biography (optional)" },
+                    avatarUrl: { type: "string", format: "uri", description: "Faculty avatar image URL (optional)" },
+                    qualifications: { type: "string", description: "Faculty qualifications (optional)" },
+                    expertise: { type: "string", description: "Faculty areas of expertise (optional)" },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "Faculty profile updated successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      profile: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          userId: { type: "string" },
+                          department: { type: "string" },
+                          designation: { type: "string" },
+                          phone: { type: "string", nullable: true },
+                          office: { type: "string", nullable: true },
+                          bio: { type: "string", nullable: true },
+                          avatarUrl: { type: "string", format: "uri", nullable: true },
+                          qualifications: { type: "string", nullable: true },
+                          expertise: { type: "string", nullable: true },
+                          createdAt: { type: "string", format: "date-time" },
+                          updatedAt: { type: "string", format: "date-time" },
+                          user: {
+                            type: "object",
+                            properties: {
+                              id: { type: "string" },
+                              name: { type: "string" },
+                              email: { type: "string", format: "email" },
+                              role: { type: "string" },
+                              verified: { type: "boolean" },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "400": { description: "At least one field must be provided for update" },
+            "401": { description: "Authorization header with Bearer token is required" },
+            "403": { description: "Faculty access required" },
+            "404": { description: "Faculty profile not found. Use POST to create a new profile" },
+            "500": { description: "Internal server error" },
+          },
+        },
       },
       "/api/student/create-internship": {
         post: {
@@ -2092,18 +2165,6 @@ export async function GET() {
                 enum: ["PENDING_VERIFICATION", "FACULTY_VERIFIED", "STUDENT_VERIFIED", "BOTH_VERIFIED", "CHANGES_REQUESTED", "all"] 
               },
               description: "Filter by verification status"
-            },
-            {
-              name: "page",
-              in: "query",
-              schema: { type: "integer", minimum: 1 },
-              description: "Page number for pagination"
-            },
-            {
-              name: "limit",
-              in: "query",
-              schema: { type: "integer", minimum: 1, maximum: 100 },
-              description: "Number of items per page"
             }
           ],
           responses: {
@@ -2166,15 +2227,6 @@ export async function GET() {
                               }
                             }
                           }
-                        }
-                      },
-                      pagination: {
-                        type: "object",
-                        properties: {
-                          page: { type: "integer" },
-                          limit: { type: "integer" },
-                          total: { type: "integer" },
-                          pages: { type: "integer" }
                         }
                       }
                     }
