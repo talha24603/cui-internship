@@ -21,12 +21,12 @@ export async function GET(req: Request) {
       );
     }
 
-    if (userRole !== "STUDENT" && userRole !== "ADMIN") {
-      return NextResponse.json(
-        { error: "Only students can access their weekly logs" },
-        { status: 403 }
-      );
-    }
+    // if (userRole !== "STUDENT" && userRole !== "ADMIN") {
+    //   return NextResponse.json(
+    //     { error: "Only students can access their weekly logs" },
+    //     { status: 403 }
+    //   );
+    // }
 
     // Find student's internship
     const internship = await prisma.internship.findFirst({
@@ -105,7 +105,7 @@ export async function POST(req: Request) {
       );
     }
 
-    if (userRole !== "STUDENT" && userRole !== "ADMIN") {
+    if (userRole !== "STUDENT" ) {
       return NextResponse.json(
         { error: "Only students can submit weekly logs" },
         { status: 403 }

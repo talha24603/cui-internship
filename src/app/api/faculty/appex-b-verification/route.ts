@@ -259,6 +259,8 @@ export async function PATCH(req: Request) {
           facultyId?: string | null;
           siteId?: string | null;
           internshipAssignmentId: string;
+          startDate?: Date | null;
+          endDate?: Date | null;
         } = {
           internshipAssignmentId: assignmentId,
         };
@@ -273,7 +275,15 @@ export async function PATCH(req: Request) {
           internshipUpdateData.siteId = updatedAssignment.siteId;
         }
 
-        // Update internship with supervisors from AppEx B
+        // Update start and end dates from AppEx B if they exist
+        if (updatedAssignment.startDate) {
+          internshipUpdateData.startDate = updatedAssignment.startDate;
+        }
+        if (updatedAssignment.endDate) {
+          internshipUpdateData.endDate = updatedAssignment.endDate;
+        }
+
+        // Update internship with supervisors and dates from AppEx B
         await prisma.internship.update({
           where: { id: internship.id },
           data: internshipUpdateData,

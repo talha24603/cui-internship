@@ -1735,10 +1735,58 @@ export async function GET() {
                 }
               }
             },
-            "401": { description: "User information not found or invalid token" },
-            "403": { description: "Only students can access their weekly logs" },
-            "404": { description: "No approved internship found for this student" },
-            "500": { description: "Internal server error" }
+            "401": {
+              description: "User information not found or invalid token",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      error: { type: "string", example: "User information not found" }
+                    }
+                  }
+                }
+              }
+            },
+            "403": {
+              description: "Only students can access their weekly logs",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      error: { type: "string", example: "Only students can access their weekly logs" }
+                    }
+                  }
+                }
+              }
+            },
+            "404": {
+              description: "No approved internship found for this student",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      error: { type: "string", example: "No approved internship found for this student" }
+                    }
+                  }
+                }
+              }
+            },
+            "500": {
+              description: "Internal server error",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      error: { type: "string", example: "Internal Server Error" }
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         post: {
@@ -1790,13 +1838,119 @@ export async function GET() {
               }
             },
             "400": {
-              description: "Missing required fields, invalid week number, internship dates not set, internship not started, or week number out of range"
+              description: "Bad request - Missing required fields, invalid week number, internship dates not set, internship not started, or week number out of range",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      error: {
+                        type: "string",
+                        example: "Missing required fields: weekNo, activitiesDone, skillsLearned, challenges"
+                      },
+                      totalWeeks: {
+                        type: "integer",
+                        description: "Total weeks in internship (only present when week number is out of range)",
+                        example: 12
+                      }
+                    }
+                  },
+                  examples: {
+                    missingFields: {
+                      value: {
+                        error: "Missing required fields: weekNo, activitiesDone, skillsLearned, challenges"
+                      }
+                    },
+                    invalidWeekNo: {
+                      value: {
+                        error: "Week number must be a positive integer"
+                      }
+                    },
+                    datesNotSet: {
+                      value: {
+                        error: "Internship dates are not set. Please ensure your Annex A has been approved."
+                      }
+                    },
+                    notStarted: {
+                      value: {
+                        error: "Internship has not started yet"
+                      }
+                    },
+                    weekOutOfRange: {
+                      value: {
+                        error: "Week number must be between 1 and 12",
+                        totalWeeks: 12
+                      }
+                    }
+                  }
+                }
+              }
             },
-            "401": { description: "User information not found or invalid token" },
-            "403": { description: "Only students can submit weekly logs" },
-            "404": { description: "No approved internship found for this student" },
-            "409": { description: "Weekly log for this week already exists" },
-            "500": { description: "Internal server error" }
+            "401": {
+              description: "User information not found or invalid token",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      error: { type: "string", example: "User information not found" }
+                    }
+                  }
+                }
+              }
+            },
+            "403": {
+              description: "Only students can submit weekly logs",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      error: { type: "string", example: "Only students can submit weekly logs" }
+                    }
+                  }
+                }
+              }
+            },
+            "404": {
+              description: "No approved internship found for this student",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      error: { type: "string", example: "No approved internship found for this student" }
+                    }
+                  }
+                }
+              }
+            },
+            "409": {
+              description: "Weekly log for this week already exists",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      error: { type: "string", example: "Weekly log for week 1 already exists" }
+                    }
+                  }
+                }
+              }
+            },
+            "500": {
+              description: "Internal server error",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      error: { type: "string", example: "Internal Server Error" }
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       },
