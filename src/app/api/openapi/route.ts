@@ -1468,7 +1468,12 @@ export async function GET() {
                           semester: { type: "string" },
                           contactNo: { type: "string" },
                           preferredField: { type: "string" },
-                          agreementAccepted: { type: "boolean" }
+                          agreementAccepted: { type: "boolean" },
+                          adminApprovalStatus: {
+                            type: "string",
+                            enum: ["PENDING", "APPROVED", "REJECTED"],
+                            description: "Admin approval status for AppEx B"
+                          }
                         }
                       }
                     }
@@ -2763,7 +2768,7 @@ export async function GET() {
         get: {
           tags: ["Admin"],
           summary: "Get all AppEx B (Internship Assignment) submissions (Admin only)",
-          description: "Retrieve all AppEx B submissions with student information. Can filter by status. If 'id' parameter is provided, returns a single AppEx B submission with full details including supervisor information.",
+          description: "Retrieve all AppEx B submissions with student information. Can filter by status and adminApprovalStatus. If 'id' parameter is provided, returns a single AppEx B submission with full details including supervisor information.",
           security: [{ bearerAuth: [] }],
           parameters: [
             {
@@ -2777,6 +2782,15 @@ export async function GET() {
               in: "query",
               schema: { type: "string" },
               description: "Optional status filter"
+            },
+            {
+              name: "adminApprovalStatus",
+              in: "query",
+              schema: {
+                type: "string",
+                enum: ["PENDING", "APPROVED", "REJECTED"]
+              },
+              description: "Optional admin approval status filter"
             }
           ],
           responses: {
@@ -2809,6 +2823,11 @@ export async function GET() {
                             endDate: { type: "string", format: "date-time", nullable: true, description: "End date (when id parameter is provided)" },
                             agreementAccepted: { type: "boolean" },
                             status: { type: "string" },
+                            adminApprovalStatus: {
+                              type: "string",
+                              enum: ["PENDING", "APPROVED", "REJECTED"],
+                              description: "Admin approval status for AppEx B"
+                            },
                             student: {
                               type: "object",
                               properties: {
@@ -2874,7 +2893,12 @@ export async function GET() {
                     siteId: { type: "string", nullable: true, description: "Optional: Site supervisor user ID (must have role SITE_SUPERVISOR). Set to null to remove assignment." },
                     durationWeeks: { type: "number", description: "Duration in weeks (optional)" },
                     startDate: { type: "string", format: "date", description: "Start date (optional)" },
-                    endDate: { type: "string", format: "date", description: "End date (optional)" }
+                    endDate: { type: "string", format: "date", description: "End date (optional)" },
+                    adminApprovalAction: {
+                      type: "string",
+                      enum: ["approve", "reject", "reset"],
+                      description: "Optional admin approval action to perform on this AppEx B (approve, reject, or reset to pending)"
+                    }
                   }
                 }
               }

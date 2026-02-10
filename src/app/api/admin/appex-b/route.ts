@@ -17,6 +17,7 @@ export async function GET(req: Request) {
     const url = new URL(req.url);
     const id = url.searchParams.get("id"); // Optional ID to get specific appex-b
     const status = url.searchParams.get("status"); // Optional status filter
+    const adminApprovalStatus = url.searchParams.get("adminApprovalStatus"); // Optional admin approval filter
 
     // If ID is provided, return specific appex-b
     if (id) {
@@ -39,6 +40,7 @@ export async function GET(req: Request) {
           endDate: true,
           agreementAccepted: true,
           status: true,
+          adminApprovalStatus: true,
           facultyVerified: true,
           facultyVerifiedAt: true,
           facultyVerificationComments: true,
@@ -90,6 +92,10 @@ export async function GET(req: Request) {
       where.status = status;
     }
 
+    if (adminApprovalStatus) {
+      where.adminApprovalStatus = adminApprovalStatus;
+    }
+
     const internshipAssignments = await prisma.internshipAssignment.findMany({
       where,
       select: {
@@ -102,6 +108,7 @@ export async function GET(req: Request) {
         preferredField: true,
         agreementAccepted: true,
         status: true,
+        adminApprovalStatus: true,
         facultyVerified: true,
         facultyVerifiedAt: true,
         facultyVerificationComments: true,
@@ -173,6 +180,7 @@ export async function PATCH(req: Request) {
       endDate,
       facultyId,
       siteId,
+      adminApprovalAction,
     } = body;
 
     if (!studentId) {
@@ -281,6 +289,7 @@ export async function PATCH(req: Request) {
         facultyId: true,
         siteId: true,
         status: true,
+        adminApprovalStatus: true,
       },
     });
 
@@ -320,6 +329,27 @@ export async function PATCH(req: Request) {
     } else if (!updateData.status && !existingAssignment.status) {
       // If no status is being set and current status is null, set to PENDING_VERIFICATION
       updateData.status = "PENDING_VERIFICATION";
+    }
+
+    // Handle admin approval status if provided
+    if (adminApprovalAction) {
+      if (!["approve", "reject", "reset"].includes(adminApprovalAction)) {
+        return NextResponse.json(
+          {
+            error:
+              "adminApprovalAction must be one of 'approve', 'reject', or 'reset'",
+          },
+          { status: 400 }
+        );
+      }
+
+      if (adminApprovalAction === "approve") {
+        updateData.adminApprovalStatus = "APPROVED";
+      } else if (adminApprovalAction === "reject") {
+        updateData.adminApprovalStatus = "REJECTED";
+      } else if (adminApprovalAction === "reset") {
+        updateData.adminApprovalStatus = "PENDING";
+      }
     }
 
     const updatedAssignment = await prisma.internshipAssignment.update({

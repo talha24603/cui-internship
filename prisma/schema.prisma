@@ -20,6 +20,12 @@ enum InternshipStatus {
   REJECTED
 }
 
+enum AdminApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum Role {
   STUDENT
   FACULTY
@@ -208,6 +214,9 @@ model InternshipAssignment {
   studentVerified             Boolean?
   studentVerifiedAt           DateTime?
   studentVerificationComments String?
+
+  // Admin approval status for AppEx B
+  adminApprovalStatus AdminApprovalStatus @default(PENDING)
 }
 
 model InternshipProposal {

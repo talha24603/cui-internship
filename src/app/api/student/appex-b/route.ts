@@ -140,6 +140,7 @@ export async function POST(req: Request) {
       update: assignmentData,
       create: {
         studentId: userId,
+        adminApprovalStatus: "PENDING",
         ...assignmentData,
       },
     });
