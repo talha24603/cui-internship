@@ -163,8 +163,14 @@ async function getAndAuthorizeInternshipForGet(
 export async function POST(req: Request) {
   try {
     const { errorResponse, supervisorId } = validateRoleAndUser(req);
-    if (errorResponse || !supervisorId) {
+    if (errorResponse) {
       return errorResponse;
+    }
+    if (!supervisorId) {
+      return NextResponse.json(
+        { error: "User information not found" },
+        { status: 401 },
+      );
     }
 
     const body = await req.json();
@@ -206,8 +212,14 @@ export async function POST(req: Request) {
         internshipId,
         supervisorId,
       );
-    if (internshipError || !internship) {
+    if (internshipError) {
       return internshipError;
+    }
+    if (!internship) {
+      return NextResponse.json(
+        { error: "Internship not found" },
+        { status: 404 },
+      );
     }
 
     const existingEvaluation = await prisma.evaluation.findFirst({
@@ -291,8 +303,14 @@ export async function GET(req: Request) {
 
     const { errorResponse: internshipError, internship } =
       await getAndAuthorizeInternshipForGet(internshipId, userId, role);
-    if (internshipError || !internship) {
+    if (internshipError) {
       return internshipError;
+    }
+    if (!internship) {
+      return NextResponse.json(
+        { error: "Internship not found" },
+        { status: 404 },
+      );
     }
 
     const evaluations = await prisma.evaluation.findMany({
