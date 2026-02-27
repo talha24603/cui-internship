@@ -261,6 +261,7 @@ model Evaluation {
   type          String // site_mid, site_final, faculty, office, presentation
   marks         Int
   comments      String?
+  details       Json?
   submittedDate DateTime   @default(now())
 }
 

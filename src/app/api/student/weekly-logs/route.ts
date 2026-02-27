@@ -103,7 +103,7 @@ export async function POST(req: Request) {
         { error: "User information not found" },
         { status: 401 }
       );
-    }
+    } 
 
     if (userRole !== "STUDENT" ) {
       return NextResponse.json(
