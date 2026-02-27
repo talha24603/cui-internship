@@ -1959,6 +1959,135 @@ export async function GET() {
           }
         }
       },
+      "/api/site/evaluations": {
+        post: {
+          tags: ["Site Supervisor"],
+          summary: "Submit site supervisor evaluation (mid or final)",
+          description: "Site supervisor submits a mid or final evaluation for a student's internship. Only the assigned site supervisor for the internship can submit this form and only once per type.",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["internshipId", "type", "criteria", "totalMarks"],
+                  properties: {
+                    internshipId: {
+                      type: "string",
+                      description: "Internship ID being evaluated"
+                    },
+                    type: {
+                      type: "string",
+                      enum: ["site_mid", "site_final"],
+                      description: "Evaluation type: mid or final (site supervisor)"
+                    },
+                    criteria: {
+                      type: "object",
+                      description: "Per-criterion ratings given by the site supervisor",
+                      properties: {
+                        punctualityAttendance: { type: "integer", minimum: 1, maximum: 4 },
+                        linkTheoryToPractice: { type: "integer", minimum: 1, maximum: 4 },
+                        criticalThinking: { type: "integer", minimum: 1, maximum: 4 },
+                        technicalKnowledge: { type: "integer", minimum: 1, maximum: 4 },
+                        creativity: { type: "integer", minimum: 1, maximum: 4 },
+                        adaptability: { type: "integer", minimum: 1, maximum: 4 },
+                        timeManagement: { type: "integer", minimum: 1, maximum: 4 },
+                        professionalBehavior: { type: "integer", minimum: 1, maximum: 4 },
+                        assignmentsPerformance: { type: "integer", minimum: 1, maximum: 4 },
+                        communicationSkills: { type: "integer", minimum: 1, maximum: 4 }
+                      }
+                    },
+                    totalMarks: {
+                      type: "number",
+                      description: "Total marks computed by the site supervisor based on the criteria"
+                    },
+                    comments: {
+                      type: "string",
+                      nullable: true,
+                      description: "Optional overall comments from the site supervisor"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          responses: {
+            "201": {
+              description: "Evaluation submitted successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      evaluation: {
+                        type: "object",
+                        description: "Created evaluation record"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "400": { description: "Missing or invalid fields in request body" },
+            "401": { description: "User information not found or invalid token" },
+            "403": { description: "Only site supervisors assigned to the internship can submit this evaluation" },
+            "404": { description: "Internship not found or not eligible for evaluation" },
+            "409": { description: "Evaluation of this type already exists for this internship and site supervisor" },
+            "500": { description: "Internal server error" }
+          }
+        },
+        get: {
+          tags: ["Evaluation"],
+          summary: "Get evaluations for an internship",
+          description: "Retrieve evaluations for a specific internship. Accessible to the student, assigned faculty supervisor, assigned site supervisor, and admins. Can optionally be filtered by evaluation type.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "internshipId",
+              in: "query",
+              required: true,
+              schema: { type: "string" },
+              description: "Internship ID to retrieve evaluations for"
+            },
+            {
+              name: "type",
+              in: "query",
+              required: false,
+              schema: { type: "string", enum: ["site_mid", "site_final"] },
+              description: "Optional filter to get only mid or final site evaluations"
+            }
+          ],
+          responses: {
+            "200": {
+              description: "Evaluations retrieved successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      evaluations: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          description: "Evaluation record for the internship"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "400": { description: "Missing internshipId or invalid type parameter" },
+            "401": { description: "User information not found or invalid token" },
+            "403": { description: "User is not allowed to view evaluations for this internship" },
+            "404": { description: "Internship not found" },
+            "500": { description: "Internal server error" }
+          }
+        }
+      },
       "/api/student/company-request-status": {
         get: {
           tags: ["Student"],
