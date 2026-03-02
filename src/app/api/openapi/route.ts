@@ -2587,6 +2587,382 @@ export async function GET() {
           }
         }
       },
+      "/api/faculty/evaluation-summary": {
+        post: {
+          tags: ["Faculty", "Evaluation"],
+          summary: "Add faculty supervisor marks to evaluation summary",
+          description: "Faculty supervisor adds their marks (0-40) to the final evaluation summary for an internship. Part of the Onsite/Virtual Internship Model: Faculty Supervisor (max 40), Site Supervisor (max 40), Internship Office (max 20), Total (max 100).",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["internshipId", "marks"],
+                  properties: {
+                    internshipId: {
+                      type: "string",
+                      description: "Internship ID to add evaluation marks for"
+                    },
+                    marks: {
+                      type: "integer",
+                      minimum: 0,
+                      maximum: 40,
+                      description: "Marks awarded by faculty supervisor (max 40)"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          responses: {
+            "201": {
+              description: "Faculty evaluation marks submitted successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      evaluationSummary: {
+                        type: "object",
+                        properties: {
+                          facultyMarks: { type: "integer" },
+                          siteMarks: { type: "integer", nullable: true },
+                          officeMarks: { type: "integer" },
+                          totalMarks: { type: "integer" },
+                          status: { type: "string", enum: ["pass", "fail"] },
+                          maximumMarks: {
+                            type: "object",
+                            properties: {
+                              faculty: { type: "integer", description: "40" },
+                              site: { type: "integer", description: "40" },
+                              office: { type: "integer", description: "20" },
+                              total: { type: "integer", description: "100" }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "400": { description: "Missing required fields or marks out of range (0-40)" },
+            "401": { description: "User information not found or invalid token" },
+            "403": { description: "Only assigned faculty supervisor can add marks for this internship" },
+            "404": { description: "Internship not found" },
+            "500": { description: "Internal server error" }
+          }
+        },
+        get: {
+          tags: ["Faculty", "Evaluation"],
+          summary: "Get evaluation summary for an internship",
+          description: "Retrieve the evaluation summary (Faculty Supervisor, Site Supervisor, Internship Office marks, total, pass/fail status). Accessible to student, faculty supervisor, site supervisor, and admin.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "internshipId",
+              in: "query",
+              required: true,
+              schema: { type: "string" },
+              description: "Internship ID to get evaluation summary for"
+            }
+          ],
+          responses: {
+            "200": {
+              description: "Evaluation summary retrieved successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      evaluationSummary: {
+                        type: "object",
+                        properties: {
+                          facultyMarks: { type: "integer", nullable: true },
+                          siteMarks: { type: "integer", nullable: true },
+                          officeMarks: { type: "integer", nullable: true },
+                          totalMarks: { type: "integer", nullable: true },
+                          status: { type: "string", nullable: true, enum: ["pass", "fail"] },
+                          maximumMarks: {
+                            type: "object",
+                            properties: {
+                              faculty: { type: "integer" },
+                              site: { type: "integer" },
+                              office: { type: "integer" },
+                              total: { type: "integer" }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "400": { description: "Missing internshipId or invalid type parameter" },
+            "401": { description: "User information not found or invalid token" },
+            "403": { description: "User is not allowed to view evaluation summary for this internship" },
+            "404": { description: "Internship not found" },
+            "500": { description: "Internal server error" }
+          }
+        }
+      },
+      "/api/faculty/evaluation-form": {
+        post: {
+          tags: ["Faculty", "Evaluation"],
+          summary: "Submit faculty evaluation form",
+          description: "Faculty supervisor submits the evaluation form with 6 criteria graded 1-10 each: Platform Activity & Engagement, Completion of Internship Project(s), Earnings Achieved, Skill Development & Learning, Client Rating and Feedback, Professionalism & Communication. Total max 60, scaled to 40 for the evaluation summary.",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["internshipId", "criteria"],
+                  properties: {
+                    internshipId: {
+                      type: "string",
+                      description: "Internship ID to evaluate"
+                    },
+                    criteria: {
+                      type: "object",
+                      required: [
+                        "platformActivityEngagement",
+                        "completionOfInternshipProjects",
+                        "earningsAchieved",
+                        "skillDevelopmentLearning",
+                        "clientRatingAndFeedback",
+                        "professionalismCommunication"
+                      ],
+                      properties: {
+                        platformActivityEngagement: { type: "integer", minimum: 1, maximum: 10, description: "Platform Activity & Engagement" },
+                        completionOfInternshipProjects: { type: "integer", minimum: 1, maximum: 10, description: "Completion of Internship Project(s)" },
+                        earningsAchieved: { type: "integer", minimum: 1, maximum: 10, description: "Earnings Achieved" },
+                        skillDevelopmentLearning: { type: "integer", minimum: 1, maximum: 10, description: "Skill Development & Learning" },
+                        clientRatingAndFeedback: { type: "integer", minimum: 1, maximum: 10, description: "Client Rating and Feedback" },
+                        professionalismCommunication: { type: "integer", minimum: 1, maximum: 10, description: "Professionalism & Communication" }
+                      }
+                    },
+                    comments: { type: "string", nullable: true, description: "Optional overall comments" }
+                  }
+                }
+              }
+            }
+          },
+          responses: {
+            "201": {
+              description: "Faculty evaluation form submitted successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      evaluation: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          type: { type: "string", enum: ["faculty"] },
+                          totalMarks: { type: "integer" },
+                          maxMarks: { type: "integer", description: "60" },
+                          facultyMarksScaled: { type: "integer", description: "Scaled to 40 for evaluation summary" },
+                          criteria: { type: "array", items: { type: "object" } },
+                          comments: { type: "string", nullable: true },
+                          submittedDate: { type: "string", format: "date-time" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "400": { description: "Missing required fields or invalid criteria (each 1-10)" },
+            "401": { description: "User information not found or invalid token" },
+            "403": { description: "Only assigned faculty supervisor can submit for this internship" },
+            "404": { description: "Internship not found" },
+            "409": { description: "Faculty evaluation form already submitted for this internship" },
+            "500": { description: "Internal server error" }
+          }
+        },
+        get: {
+          tags: ["Faculty", "Evaluation"],
+          summary: "Get faculty evaluation form for an internship",
+          description: "Retrieve the submitted faculty evaluation form. Accessible to student, faculty supervisor, site supervisor, and admin.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "internshipId",
+              in: "query",
+              required: true,
+              schema: { type: "string" },
+              description: "Internship ID to get faculty evaluation for"
+            }
+          ],
+          responses: {
+            "200": {
+              description: "Faculty evaluation form retrieved (or null if not submitted)",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      evaluation: {
+                        type: "object",
+                        nullable: true,
+                        properties: {
+                          id: { type: "string" },
+                          type: { type: "string" },
+                          totalMarks: { type: "integer" },
+                          maxMarks: { type: "integer" },
+                          criteria: { type: "array", items: { type: "object" } },
+                          comments: { type: "string", nullable: true },
+                          submittedDate: { type: "string", format: "date-time" },
+                          evaluator: { type: "object" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "400": { description: "Missing internshipId" },
+            "401": { description: "User information not found or invalid token" },
+            "403": { description: "User is not allowed to view this evaluation" },
+            "404": { description: "Internship not found" },
+            "500": { description: "Internal server error" }
+          }
+        }
+      },
+      "/api/admin/office-evaluation": {
+        post: {
+          tags: ["Admin", "Evaluation"],
+          summary: "Submit office evaluation form (Admin only)",
+          description: "Admin submits the office evaluation form with 4 criteria. Each criterion: Excellent (10), Good (8), Satisfactory (5), Needs Improvement (3). Total max 40, scaled to 20 for the evaluation summary.",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["internshipId", "criteria"],
+                  properties: {
+                    internshipId: {
+                      type: "string",
+                      description: "Internship ID to evaluate"
+                    },
+                    criteria: {
+                      type: "object",
+                      required: [
+                        "internshipReport",
+                        "portfolioEvidence",
+                        "timeManagement",
+                        "overallInternshipImpact"
+                      ],
+                      properties: {
+                        internshipReport: { type: "integer", enum: [3, 5, 8, 10], description: "Internship Report (Logbook)" },
+                        portfolioEvidence: { type: "integer", enum: [3, 5, 8, 10], description: "Portfolio Evidence (Screenshots, Files, Chat Logs)" },
+                        timeManagement: { type: "integer", enum: [3, 5, 8, 10], description: "Time Management & Deadline Compliance" },
+                        overallInternshipImpact: { type: "integer", enum: [3, 5, 8, 10], description: "Overall Internship Impact" }
+                      }
+                    },
+                    comments: { type: "string", nullable: true, description: "Optional overall comments" }
+                  }
+                }
+              }
+            }
+          },
+          responses: {
+            "201": {
+              description: "Office evaluation form submitted successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      evaluation: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          type: { type: "string", enum: ["office"] },
+                          totalMarks: { type: "integer" },
+                          maxMarks: { type: "integer", description: "40" },
+                          officeMarksScaled: { type: "integer", description: "Scaled to 20 for evaluation summary" },
+                          criteria: { type: "array", items: { type: "object" } },
+                          comments: { type: "string", nullable: true },
+                          submittedDate: { type: "string", format: "date-time" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "400": { description: "Missing required fields or invalid criteria (each must be 3, 5, 8, or 10)" },
+            "401": { description: "User information not found or invalid token" },
+            "403": { description: "Only admins can submit office evaluation" },
+            "404": { description: "Internship not found" },
+            "409": { description: "Office evaluation already submitted for this internship" },
+            "500": { description: "Internal server error" }
+          }
+        },
+        get: {
+          tags: ["Admin", "Evaluation"],
+          summary: "Get office evaluation form for an internship",
+          description: "Retrieve the submitted office evaluation form. Accessible to student, faculty supervisor, site supervisor, and admin.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "internshipId",
+              in: "query",
+              required: true,
+              schema: { type: "string" },
+              description: "Internship ID to get office evaluation for"
+            }
+          ],
+          responses: {
+            "200": {
+              description: "Office evaluation form retrieved (or null if not submitted)",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      evaluation: {
+                        type: "object",
+                        nullable: true,
+                        properties: {
+                          id: { type: "string" },
+                          type: { type: "string" },
+                          totalMarks: { type: "integer" },
+                          maxMarks: { type: "integer" },
+                          criteria: { type: "array", items: { type: "object" } },
+                          comments: { type: "string", nullable: true },
+                          submittedDate: { type: "string", format: "date-time" },
+                          evaluator: { type: "object" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "400": { description: "Missing internshipId" },
+            "401": { description: "User information not found or invalid token" },
+            "403": { description: "User is not allowed to view this evaluation" },
+            "404": { description: "Internship not found" },
+            "500": { description: "Internal server error" }
+          }
+        }
+      },
       "/api/admin/review-company": {
         post: {
           tags: ["Admin"],
