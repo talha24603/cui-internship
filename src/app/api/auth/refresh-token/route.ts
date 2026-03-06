@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { verifyRefreshToken, signAccessToken, getValidRefreshToken } from "@/utils/authhelper";
+import prisma from "@/utils/prisma";
+import {
+  verifyRefreshToken,
+  signAccessToken,
+  getValidRefreshToken,
+} from "@/utils/authhelper";
 
 export async function GET(req: Request) {
   try {
