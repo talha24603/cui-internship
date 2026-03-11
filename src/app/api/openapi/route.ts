@@ -1158,6 +1158,133 @@ export async function GET() {
           },
         },
       },
+      "/api/site/internships": {
+        get: {
+          tags: ["Site Supervisor"],
+          summary: "Get internships connected to a site supervisor",
+          description:
+            "Returns internships where the authenticated site supervisor user is assigned as the site supervisor.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "status",
+              in: "query",
+              required: false,
+              schema: {
+                type: "string",
+                enum: ["all", "pending", "approved", "completed", "rejected"],
+                default: "all",
+              },
+              description:
+                "Optional status filter (case-insensitive). Use 'all' to disable filtering.",
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Site supervisor internships retrieved successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      data: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            id: { type: "string" },
+                            studentId: { type: "string" },
+                            facultyId: { type: "string", nullable: true },
+                            siteId: { type: "string", nullable: true },
+                            type: {
+                              type: "string",
+                              enum: ["ONSITE", "REMOTE", "FIVERR"],
+                            },
+                            startDate: {
+                              type: "string",
+                              format: "date-time",
+                              nullable: true,
+                            },
+                            endDate: {
+                              type: "string",
+                              format: "date-time",
+                              nullable: true,
+                            },
+                            status: {
+                              type: "string",
+                              enum: ["PENDING", "APPROVED", "REJECTED", "COMPLETED"],
+                            },
+                            createdAt: { type: "string", format: "date-time" },
+                            updatedAt: { type: "string", format: "date-time" },
+                            student: {
+                              type: "object",
+                              properties: {
+                                id: { type: "string" },
+                                name: { type: "string", nullable: true },
+                                email: { type: "string", format: "email" },
+                                regNo: { type: "string", nullable: true },
+                              },
+                            },
+                            faculty: {
+                              type: "object",
+                              nullable: true,
+                              properties: {
+                                id: { type: "string" },
+                                name: { type: "string", nullable: true },
+                                email: { type: "string", format: "email" },
+                              },
+                            },
+                            site: {
+                              type: "object",
+                              nullable: true,
+                              properties: {
+                                id: { type: "string" },
+                                name: { type: "string", nullable: true },
+                                email: { type: "string", format: "email" },
+                                company: {
+                                  type: "object",
+                                  nullable: true,
+                                  properties: {
+                                    id: { type: "string" },
+                                    name: { type: "string" },
+                                    industry: { type: "string", nullable: true },
+                                  },
+                                },
+                              },
+                            },
+                            finalResult: {
+                              type: "object",
+                              nullable: true,
+                              properties: {
+                                id: { type: "string" },
+                                internshipId: { type: "string" },
+                                facultyMarks: { type: "integer" },
+                                siteMarks: { type: "integer", nullable: true },
+                                officeMarks: { type: "integer" },
+                                presentationMarks: { type: "integer", nullable: true },
+                                totalMarks: { type: "integer" },
+                                status: { type: "string" },
+                                hodSignatureUrl: { type: "string", nullable: true },
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "400": { description: "Invalid status filter" },
+            "401": { description: "Authorization header with Bearer token is required" },
+            "403": {
+              description: "Only site supervisors can access site internships",
+            },
+            "500": { description: "Internal server error" },
+          },
+        },
+      },
       "/api/student/create-internship": {
         post: {
           tags: ["Student"],
