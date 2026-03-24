@@ -14,35 +14,39 @@ import { verifyAccessToken } from "@/utils/authhelper";
 export function middleware(req: NextRequest) {
   const origin = req.headers.get("origin") || "";
   const url = new URL(req.url);
+  const requestHeaders = new Headers(req.headers);
 
-  const res = NextResponse.next();
+  const setCorsHeaders = (response: NextResponse) => {
+    // --- CORS ---
+    // Allow all origins
+    if (origin) {
+      response.headers.set("Access-Control-Allow-Origin", origin);
+      response.headers.set("Access-Control-Allow-Credentials", "true");
+    } else {
+      response.headers.set("Access-Control-Allow-Origin", "*");
+    }
 
-  // --- CORS ---
-  // Allow all origins
-  if (origin) {
-    res.headers.set("Access-Control-Allow-Origin", origin);
-    res.headers.set("Access-Control-Allow-Credentials", "true");
-  } else {
-    res.headers.set("Access-Control-Allow-Origin", "*");
-  }
-  
-  // Previous CORS logic with allowedOrigins check:
-  // if (allowedOrigins.includes(origin)) {
-  //   res.headers.set("Access-Control-Allow-Origin", origin );
-  //   res.headers.set("Access-Control-Allow-Credentials", "true");
-  // }
-  res.headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  res.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    // Previous CORS logic with allowedOrigins check:
+    // if (allowedOrigins.includes(origin)) {
+    //   response.headers.set("Access-Control-Allow-Origin", origin );
+    //   response.headers.set("Access-Control-Allow-Credentials", "true");
+    // }
+    response.headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    response.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  };
 
   // Preflight OPTIONS
   if (req.method === "OPTIONS") {
-    return new NextResponse(null, { status: 204, headers: res.headers });
+    const preflight = new NextResponse(null, { status: 204 });
+    setCorsHeaders(preflight);
+    return preflight;
   }
 
   // --- Authentication for protected routes ---
   if (url.pathname.startsWith("/api/admin/") || 
       url.pathname.startsWith("/api/faculty/") ||
       url.pathname.startsWith("/api/student/") ||
+      url.pathname.startsWith("/api/site/") ||
       url.pathname.startsWith("/api/dropdown/")) {
     const authHeader = req.headers.get("Authorization");
 
@@ -58,10 +62,12 @@ export function middleware(req: NextRequest) {
       const payload = verifyAccessToken(token);
 
       // Pass user info for downstream handlers (let APIs handle role checking)
-      res.headers.set("x-user-id", String(payload.sub));
-      res.headers.set("x-user-role", payload.role);
-      res.headers.set("x-user-name", payload.name || "");
-      res.headers.set("x-user-email", payload.email || "");
+      requestHeaders.set("x-user-id", String(payload.sub));
+      requestHeaders.set("x-user-role", payload.role);
+      requestHeaders.set("x-user-name", payload.name || "");
+      requestHeaders.set("x-user-email", payload.email || "");
+      requestHeaders.set("x-supervisor-id", typeof payload.supervisorId === "string" ? payload.supervisorId : "");
+      requestHeaders.set("x-faculty-id", typeof payload.facultyId === "string" ? payload.facultyId : "");
 
     } catch (err) {
       return NextResponse.json(
@@ -71,6 +77,12 @@ export function middleware(req: NextRequest) {
     }
   }
 
+  const res = NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  });
+  setCorsHeaders(res);
   return res;
 }
 

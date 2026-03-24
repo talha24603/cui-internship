@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/utils/prisma";
 import { InternshipStatus } from "@prisma/client";
+import { log } from "console";
 
 // GET /api/site/internships
 // - SITE_SUPERVISOR: returns internships where internship.siteId === current userId
@@ -8,6 +9,7 @@ export async function GET(req: Request) {
   try {
     const supervisorId = req.headers.get("x-user-id");
     const role = req.headers.get("x-user-role");
+    console.log("Supervisor ID:", supervisorId, "Role:", role);
 
     if (!supervisorId || !role) {
       return NextResponse.json(
