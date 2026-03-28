@@ -5,7 +5,7 @@ export async function GET() {
     openapi: "3.0.3",
     info: {
       title: "CUI Internship API",
-      version: "1.10.0",
+      version: "1.11.0",
       description: "OpenAPI specification for CUI Internship API - Auth, Admin, Faculty, Student, Site Supervisor, and Dropdown endpoints. All protected routes use middleware-based authentication with Bearer tokens.",
     },
     servers: [
@@ -3222,6 +3222,388 @@ export async function GET() {
             "500": { description: "Internal server error" }
           }
         }
+      },
+      "/api/admin/internships": {
+        get: {
+          tags: ["Admin"],
+          summary: "List all internships (Admin only)",
+          description:
+            "Returns every internship record with student, faculty, site (and company), and final result. No pagination.",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            "200": {
+              description: "Internships retrieved successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      data: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            id: { type: "string" },
+                            studentId: { type: "string" },
+                            facultyId: { type: "string", nullable: true },
+                            siteId: { type: "string", nullable: true },
+                            type: {
+                              type: "string",
+                              enum: ["ONSITE", "REMOTE", "FIVERR"],
+                            },
+                            startDate: {
+                              type: "string",
+                              format: "date-time",
+                              nullable: true,
+                            },
+                            endDate: {
+                              type: "string",
+                              format: "date-time",
+                              nullable: true,
+                            },
+                            status: {
+                              type: "string",
+                              enum: ["PENDING", "APPROVED", "COMPLETED", "REJECTED"],
+                            },
+                            internshipApprovalId: { type: "string", nullable: true },
+                            internshipAssignmentId: { type: "string", nullable: true },
+                            internshipProposalId: { type: "string", nullable: true },
+                            createdAt: { type: "string", format: "date-time" },
+                            updatedAt: { type: "string", format: "date-time" },
+                            student: {
+                              type: "object",
+                              properties: {
+                                id: { type: "string" },
+                                name: { type: "string", nullable: true },
+                                email: { type: "string", format: "email" },
+                                regNo: { type: "string", nullable: true },
+                              },
+                            },
+                            faculty: {
+                              type: "object",
+                              nullable: true,
+                              properties: {
+                                id: { type: "string" },
+                                name: { type: "string", nullable: true },
+                                email: { type: "string", format: "email" },
+                              },
+                            },
+                            site: {
+                              type: "object",
+                              nullable: true,
+                              properties: {
+                                id: { type: "string" },
+                                name: { type: "string", nullable: true },
+                                email: { type: "string", format: "email" },
+                                company: {
+                                  type: "object",
+                                  nullable: true,
+                                  properties: {
+                                    id: { type: "string" },
+                                    name: { type: "string" },
+                                    industry: { type: "string", nullable: true },
+                                  },
+                                },
+                              },
+                            },
+                            finalResult: {
+                              type: "object",
+                              nullable: true,
+                              properties: {
+                                id: { type: "string" },
+                                internshipId: { type: "string" },
+                                facultyMarks: { type: "integer" },
+                                siteMarks: { type: "integer", nullable: true },
+                                officeMarks: { type: "integer" },
+                                presentationMarks: { type: "integer", nullable: true },
+                                totalMarks: { type: "integer" },
+                                status: { type: "string" },
+                                hodSignatureUrl: { type: "string", nullable: true },
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "401": { description: "User information not found or invalid token" },
+            "403": { description: "Only admins can access this resource" },
+            "500": { description: "Internal server error" },
+          },
+        },
+      },
+      "/api/admin/internships/{id}": {
+        get: {
+          tags: ["Admin"],
+          summary: "Get internship details by ID (Admin only)",
+          description:
+            "Returns one internship with AppEx records (on the student), reports, weekly logs, evaluations (with evaluator), and final result.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+              description: "Internship UUID",
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Internship retrieved successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      data: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          studentId: { type: "string" },
+                          facultyId: { type: "string", nullable: true },
+                          siteId: { type: "string", nullable: true },
+                          type: {
+                            type: "string",
+                            enum: ["ONSITE", "REMOTE", "FIVERR"],
+                          },
+                          startDate: {
+                            type: "string",
+                            format: "date-time",
+                            nullable: true,
+                          },
+                          endDate: {
+                            type: "string",
+                            format: "date-time",
+                            nullable: true,
+                          },
+                          status: {
+                            type: "string",
+                            enum: ["PENDING", "APPROVED", "COMPLETED", "REJECTED"],
+                          },
+                          internshipApprovalId: { type: "string", nullable: true },
+                          internshipAssignmentId: { type: "string", nullable: true },
+                          internshipProposalId: { type: "string", nullable: true },
+                          createdAt: { type: "string", format: "date-time" },
+                          updatedAt: { type: "string", format: "date-time" },
+                          student: {
+                            type: "object",
+                            properties: {
+                              id: { type: "string" },
+                              name: { type: "string", nullable: true },
+                              email: { type: "string", format: "email" },
+                              regNo: { type: "string", nullable: true },
+                              verified: { type: "boolean" },
+                              createdAt: { type: "string", format: "date-time" },
+                              InternshipApproval: {
+                                type: "object",
+                                nullable: true,
+                                properties: {
+                                  id: { type: "string" },
+                                  studentId: { type: "string" },
+                                  organization: { type: "string" },
+                                  address: { type: "string" },
+                                  industrySector: { type: "string" },
+                                  contactName: { type: "string" },
+                                  contactDesignation: { type: "string" },
+                                  contactPhone: { type: "string" },
+                                  contactEmail: { type: "string" },
+                                  internshipNature: { type: "string" },
+                                  internshipLocation: { type: "string" },
+                                  mode: { type: "string" },
+                                  numberOfInternship: { type: "string" },
+                                  startDate: { type: "string", format: "date-time" },
+                                  endDate: { type: "string", format: "date-time" },
+                                  workingDays: { type: "string" },
+                                  workingHours: { type: "string" },
+                                  status: { type: "string" },
+                                },
+                              },
+                              InternshipAssignment: {
+                                type: "object",
+                                nullable: true,
+                                properties: {
+                                  id: { type: "string" },
+                                  studentId: { type: "string" },
+                                  name: { type: "string" },
+                                  degreeProgram: { type: "string" },
+                                  email: { type: "string", format: "email" },
+                                  semester: { type: "string" },
+                                  contactNo: { type: "string" },
+                                  preferredField: { type: "string" },
+                                  companyName: { type: "string", nullable: true },
+                                  internshipRole: { type: "string", nullable: true },
+                                  facultySupervisorNameDesig: { type: "string", nullable: true },
+                                  siteSupervisorNameDesig: { type: "string", nullable: true },
+                                  durationWeeks: { type: "integer", nullable: true },
+                                  startDate: {
+                                    type: "string",
+                                    format: "date-time",
+                                    nullable: true,
+                                  },
+                                  endDate: {
+                                    type: "string",
+                                    format: "date-time",
+                                    nullable: true,
+                                  },
+                                  agreementAccepted: { type: "boolean", nullable: true },
+                                  status: { type: "string", nullable: true },
+                                  facultyId: { type: "string", nullable: true },
+                                  siteId: { type: "string", nullable: true },
+                                  facultyVerified: { type: "boolean", nullable: true },
+                                  facultyVerifiedAt: {
+                                    type: "string",
+                                    format: "date-time",
+                                    nullable: true,
+                                  },
+                                  facultyVerificationComments: { type: "string", nullable: true },
+                                  studentVerified: { type: "boolean", nullable: true },
+                                  studentVerifiedAt: {
+                                    type: "string",
+                                    format: "date-time",
+                                    nullable: true,
+                                  },
+                                  studentVerificationComments: { type: "string", nullable: true },
+                                  adminApprovalStatus: {
+                                    type: "string",
+                                    enum: ["PENDING", "APPROVED", "REJECTED"],
+                                  },
+                                },
+                              },
+                              InternshipProposal: {
+                                type: "object",
+                                nullable: true,
+                                properties: {
+                                  id: { type: "string" },
+                                  studentId: { type: "string" },
+                                  organizationOverview: { type: "string" },
+                                  roleDescription: { type: "string" },
+                                  keyActivities: { type: "string" },
+                                  toolsTechnologies: { type: "string" },
+                                  expectedDeliverables: { type: "string" },
+                                  submittedDate: { type: "string", format: "date-time" },
+                                },
+                              },
+                            },
+                          },
+                          faculty: {
+                            type: "object",
+                            nullable: true,
+                            properties: {
+                              id: { type: "string" },
+                              name: { type: "string", nullable: true },
+                              email: { type: "string", format: "email" },
+                            },
+                          },
+                          site: {
+                            type: "object",
+                            nullable: true,
+                            properties: {
+                              id: { type: "string" },
+                              name: { type: "string", nullable: true },
+                              email: { type: "string", format: "email" },
+                              company: {
+                                type: "object",
+                                nullable: true,
+                                properties: {
+                                  id: { type: "string" },
+                                  name: { type: "string" },
+                                  email: { type: "string", format: "email" },
+                                  phone: { type: "string", nullable: true },
+                                  industry: { type: "string", nullable: true },
+                                  address: { type: "string", nullable: true },
+                                },
+                              },
+                            },
+                          },
+                          reports: {
+                            type: "array",
+                            items: {
+                              type: "object",
+                              properties: {
+                                id: { type: "string" },
+                                internshipId: { type: "string" },
+                                type: { type: "string" },
+                                fileUrl: { type: "string" },
+                                summary: { type: "string", nullable: true },
+                                submittedDate: { type: "string", format: "date-time" },
+                              },
+                            },
+                          },
+                          weeklyLogs: {
+                            type: "array",
+                            items: {
+                              type: "object",
+                              properties: {
+                                id: { type: "string" },
+                                internshipId: { type: "string" },
+                                weekNo: { type: "integer" },
+                                activitiesDone: { type: "string" },
+                                skillsLearned: { type: "string" },
+                                challenges: { type: "string" },
+                                submittedDate: { type: "string", format: "date-time" },
+                              },
+                            },
+                          },
+                          evaluations: {
+                            type: "array",
+                            items: {
+                              type: "object",
+                              properties: {
+                                id: { type: "string" },
+                                internshipId: { type: "string" },
+                                evaluatorId: { type: "string", nullable: true },
+                                type: { type: "string" },
+                                marks: { type: "integer" },
+                                comments: { type: "string", nullable: true },
+                                details: { type: "object", nullable: true },
+                                submittedDate: { type: "string", format: "date-time" },
+                                evaluator: {
+                                  type: "object",
+                                  nullable: true,
+                                  properties: {
+                                    id: { type: "string" },
+                                    name: { type: "string", nullable: true },
+                                    email: { type: "string", format: "email" },
+                                  },
+                                },
+                              },
+                            },
+                          },
+                          finalResult: {
+                            type: "object",
+                            nullable: true,
+                            properties: {
+                              id: { type: "string" },
+                              internshipId: { type: "string" },
+                              facultyMarks: { type: "integer" },
+                              siteMarks: { type: "integer", nullable: true },
+                              officeMarks: { type: "integer" },
+                              presentationMarks: { type: "integer", nullable: true },
+                              totalMarks: { type: "integer" },
+                              status: { type: "string" },
+                              hodSignatureUrl: { type: "string", nullable: true },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "400": { description: "Internship id is required" },
+            "401": { description: "User information not found or invalid token" },
+            "403": { description: "Only admins can access this resource" },
+            "404": { description: "Internship not found" },
+            "500": { description: "Internal server error" },
+          },
+        },
       },
       "/api/admin/review-company": {
         post: {
