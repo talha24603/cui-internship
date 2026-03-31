@@ -2527,6 +2527,97 @@ export async function GET() {
           }
         }
       },
+      "/api/student/final-result": {
+        get: {
+          tags: ["Student"],
+          summary: "Get final result for authenticated student",
+          description:
+            "Returns the student's final result. If `internshipId` is provided, it fetches that internship (must belong to the student); otherwise, latest internship is used.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "internshipId",
+              in: "query",
+              required: false,
+              schema: { type: "string" },
+              description: "Optional internship ID for which to fetch final result",
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Final result retrieved (or not available yet)",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      finalResult: {
+                        type: "object",
+                        nullable: true,
+                        properties: {
+                          id: { type: "string" },
+                          internshipId: { type: "string" },
+                          facultyMarks: { type: "integer" },
+                          siteMarks: { type: "integer", nullable: true },
+                          officeMarks: { type: "integer" },
+                          presentationMarks: { type: "integer", nullable: true },
+                          totalMarks: { type: "integer" },
+                          status: { type: "string", enum: ["pass", "fail"] },
+                          hodSignatureUrl: { type: "string", nullable: true },
+                        },
+                      },
+                      internship: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          type: { type: "string", enum: ["ONSITE", "REMOTE", "FIVERR"] },
+                          status: {
+                            type: "string",
+                            enum: ["PENDING", "APPROVED", "COMPLETED", "REJECTED"],
+                          },
+                          startDate: {
+                            type: "string",
+                            format: "date-time",
+                            nullable: true,
+                          },
+                          endDate: {
+                            type: "string",
+                            format: "date-time",
+                            nullable: true,
+                          },
+                          faculty: {
+                            type: "object",
+                            nullable: true,
+                            properties: {
+                              id: { type: "string" },
+                              name: { type: "string", nullable: true },
+                              email: { type: "string", format: "email" },
+                            },
+                          },
+                          site: {
+                            type: "object",
+                            nullable: true,
+                            properties: {
+                              id: { type: "string" },
+                              name: { type: "string", nullable: true },
+                              email: { type: "string", format: "email" },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "401": { description: "User information not found or invalid token" },
+            "403": { description: "Only students can view final result" },
+            "404": { description: "Internship not found for this student" },
+            "500": { description: "Internal server error" },
+          },
+        },
+      },
       "/api/faculty/appex-a-approval": {
         get: {
           tags: ["Faculty"],
