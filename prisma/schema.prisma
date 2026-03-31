@@ -60,6 +60,7 @@ model User {
   InternshipProposal   InternshipProposal?
   facultySupervisorAssignments InternshipAssignment[] @relation("FacultySupervisorAssignments")
   siteSupervisorAssignments    InternshipAssignment[] @relation("SiteSupervisorAssignments")
+  announcements                Announcement[]
 }
 
 model RefreshToken {
@@ -276,4 +277,18 @@ model FinalResult {
   totalMarks        Int
   status            String // pass, fail
   hodSignatureUrl   String?
+}
+
+model Announcement {
+  id          String   @id @default(uuid())
+  title       String?
+  message     String
+  link        String?
+  pinned      Boolean  @default(false)
+  createdBy   User?    @relation(fields: [createdById], references: [id])
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([pinned, createdAt])
 }

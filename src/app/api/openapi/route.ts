@@ -3223,6 +3223,129 @@ export async function GET() {
           }
         }
       },
+      "/api/admin/announcements": {
+        get: {
+          tags: ["Admin"],
+          summary: "Get all announcements",
+          description:
+            "Returns all announcements ordered by pinned first, then newest first.",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            "200": {
+              description: "Announcements retrieved successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      data: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            id: { type: "string" },
+                            title: { type: "string", nullable: true },
+                            message: { type: "string" },
+                            link: { type: "string", nullable: true },
+                            pinned: { type: "boolean" },
+                            createdById: { type: "string", nullable: true },
+                            createdAt: { type: "string", format: "date-time" },
+                            updatedAt: { type: "string", format: "date-time" },
+                            createdBy: {
+                              type: "object",
+                              nullable: true,
+                              properties: {
+                                id: { type: "string" },
+                                name: { type: "string", nullable: true },
+                                email: { type: "string", format: "email" },
+                                role: {
+                                  type: "string",
+                                  enum: ["STUDENT", "FACULTY", "SITE_SUPERVISOR", "ADMIN"],
+                                },
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "401": { description: "User information not found or invalid token" },
+            "500": { description: "Internal server error" },
+          },
+        },
+        post: {
+          tags: ["Admin"],
+          summary: "Publish announcement (Admin only)",
+          description: "Creates a new announcement. `message` is required.",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["message"],
+                  properties: {
+                    title: { type: "string", nullable: true },
+                    message: { type: "string" },
+                    link: { type: "string", format: "uri", nullable: true },
+                    pinned: { type: "boolean", default: false },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "201": {
+              description: "Announcement published successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      data: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          title: { type: "string", nullable: true },
+                          message: { type: "string" },
+                          link: { type: "string", nullable: true },
+                          pinned: { type: "boolean" },
+                          createdById: { type: "string", nullable: true },
+                          createdAt: { type: "string", format: "date-time" },
+                          updatedAt: { type: "string", format: "date-time" },
+                          createdBy: {
+                            type: "object",
+                            nullable: true,
+                            properties: {
+                              id: { type: "string" },
+                              name: { type: "string", nullable: true },
+                              email: { type: "string", format: "email" },
+                              role: {
+                                type: "string",
+                                enum: ["STUDENT", "FACULTY", "SITE_SUPERVISOR", "ADMIN"],
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "400": { description: "Invalid request body (missing message or invalid link)" },
+            "401": { description: "User information not found or invalid token" },
+            "403": { description: "Only admins can publish announcements" },
+            "500": { description: "Internal server error" },
+          },
+        },
+      },
       "/api/admin/internships": {
         get: {
           tags: ["Admin"],
