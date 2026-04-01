@@ -1158,6 +1158,127 @@ export async function GET() {
           },
         },
       },
+      "/api/faculty/weekly-logs": {
+        get: {
+          tags: ["Faculty"],
+          summary: "Get weekly logs for faculty-supervised internships",
+          description:
+            "Returns weekly logs for internships where the authenticated user is the faculty supervisor. Admins may optionally pass `facultyId` to scope by faculty (same as faculty internships). Optional `internshipId` returns a single internship if accessible.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "internshipId",
+              in: "query",
+              required: false,
+              schema: { type: "string" },
+              description: "If set, only this internship (must be supervised by the faculty, or match admin filters).",
+            },
+            {
+              name: "facultyId",
+              in: "query",
+              required: false,
+              schema: { type: "string" },
+              description: "Admin-only: filter by faculty supervisor user ID. Ignored for FACULTY role.",
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Weekly logs retrieved successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      data: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            internship: {
+                              type: "object",
+                              properties: {
+                                id: { type: "string" },
+                                type: {
+                                  type: "string",
+                                  enum: ["ONSITE", "REMOTE", "FIVERR"],
+                                },
+                                status: {
+                                  type: "string",
+                                  enum: ["PENDING", "APPROVED", "COMPLETED", "REJECTED"],
+                                },
+                                startDate: {
+                                  type: "string",
+                                  format: "date-time",
+                                  nullable: true,
+                                },
+                                endDate: {
+                                  type: "string",
+                                  format: "date-time",
+                                  nullable: true,
+                                },
+                                student: {
+                                  type: "object",
+                                  properties: {
+                                    id: { type: "string" },
+                                    name: { type: "string", nullable: true },
+                                    email: { type: "string", format: "email" },
+                                    regNo: { type: "string", nullable: true },
+                                  },
+                                },
+                              },
+                            },
+                            weeklyLogs: {
+                              type: "array",
+                              items: {
+                                type: "object",
+                                properties: {
+                                  id: { type: "string" },
+                                  internshipId: { type: "string" },
+                                  weekNo: { type: "integer" },
+                                  activitiesDone: { type: "string" },
+                                  skillsLearned: { type: "string" },
+                                  challenges: { type: "string" },
+                                  submittedDate: {
+                                    type: "string",
+                                    format: "date-time",
+                                  },
+                                },
+                              },
+                            },
+                            weeklyLogStatus: {
+                              type: "object",
+                              nullable: true,
+                              properties: {
+                                totalWeeks: { type: "integer" },
+                                currentWeek: { type: "integer" },
+                                submittedWeeks: {
+                                  type: "array",
+                                  items: { type: "integer" },
+                                },
+                                pendingWeeks: {
+                                  type: "array",
+                                  items: { type: "integer" },
+                                },
+                                hasStarted: { type: "boolean" },
+                                hasEnded: { type: "boolean" },
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "401": { description: "User information not found or invalid token" },
+            "403": { description: "Only faculty and admin can access faculty weekly logs" },
+            "404": { description: "Internship not found (when internshipId specified)" },
+            "500": { description: "Internal server error" },
+          },
+        },
+      },
       "/api/site/internships": {
         get: {
           tags: ["Site Supervisor"],
@@ -1382,6 +1503,138 @@ export async function GET() {
             "401": { description: "User information not found or invalid token" },
             "403": { description: "Only students can create internships" },
             "409": { description: "You already have an active internship request" },
+            "500": { description: "Internal server error" },
+          },
+        },
+      },
+      "/api/student/internships": {
+        get: {
+          tags: ["Student"],
+          summary: "List internships for authenticated student",
+          description:
+            "Returns all internships for the logged-in student (newest first). Optional `id` or `internshipId` returns a single record. Optional `status` filters by internship status.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "id",
+              in: "query",
+              required: false,
+              schema: { type: "string" },
+              description: "Internship ID (alternative to internshipId)",
+            },
+            {
+              name: "internshipId",
+              in: "query",
+              required: false,
+              schema: { type: "string" },
+              description: "Internship ID (alternative to id)",
+            },
+            {
+              name: "status",
+              in: "query",
+              required: false,
+              schema: {
+                type: "string",
+                enum: ["all", "pending", "approved", "completed", "rejected"],
+              },
+              description: "Filter by status (case-insensitive); default all",
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Internships retrieved successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      data: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            id: { type: "string" },
+                            studentId: { type: "string" },
+                            facultyId: { type: "string", nullable: true },
+                            siteId: { type: "string", nullable: true },
+                            type: {
+                              type: "string",
+                              enum: ["ONSITE", "REMOTE", "FIVERR"],
+                            },
+                            startDate: {
+                              type: "string",
+                              format: "date-time",
+                              nullable: true,
+                            },
+                            endDate: {
+                              type: "string",
+                              format: "date-time",
+                              nullable: true,
+                            },
+                            status: {
+                              type: "string",
+                              enum: ["PENDING", "APPROVED", "COMPLETED", "REJECTED"],
+                            },
+                            internshipApprovalId: { type: "string", nullable: true },
+                            internshipAssignmentId: { type: "string", nullable: true },
+                            internshipProposalId: { type: "string", nullable: true },
+                            createdAt: { type: "string", format: "date-time" },
+                            updatedAt: { type: "string", format: "date-time" },
+                            faculty: {
+                              type: "object",
+                              nullable: true,
+                              properties: {
+                                id: { type: "string" },
+                                name: { type: "string", nullable: true },
+                                email: { type: "string", format: "email" },
+                              },
+                            },
+                            site: {
+                              type: "object",
+                              nullable: true,
+                              properties: {
+                                id: { type: "string" },
+                                name: { type: "string", nullable: true },
+                                email: { type: "string", format: "email" },
+                                company: {
+                                  type: "object",
+                                  nullable: true,
+                                  properties: {
+                                    id: { type: "string" },
+                                    name: { type: "string" },
+                                    industry: { type: "string", nullable: true },
+                                  },
+                                },
+                              },
+                            },
+                            finalResult: {
+                              type: "object",
+                              nullable: true,
+                              properties: {
+                                id: { type: "string" },
+                                internshipId: { type: "string" },
+                                facultyMarks: { type: "integer" },
+                                siteMarks: { type: "integer", nullable: true },
+                                officeMarks: { type: "integer" },
+                                presentationMarks: { type: "integer", nullable: true },
+                                totalMarks: { type: "integer" },
+                                status: { type: "string" },
+                                hodSignatureUrl: { type: "string", nullable: true },
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "400": { description: "Invalid status filter" },
+            "401": { description: "User information not found or invalid token" },
+            "403": { description: "Only students can view their internships" },
+            "404": { description: "Internship not found (when id/internshipId specified)" },
             "500": { description: "Internal server error" },
           },
         },
