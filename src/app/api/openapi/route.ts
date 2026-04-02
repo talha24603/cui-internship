@@ -3689,6 +3689,112 @@ export async function GET() {
             "500": { description: "Internal server error" },
           },
         },
+        put: {
+          tags: ["Admin"],
+          summary: "Edit an announcement (Admin only)",
+          description:
+            "Updates an existing announcement. Body must include `id` and at least one updatable field: `title`, `message`, `link`, `pinned`.",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["id"],
+                  properties: {
+                    id: { type: "string" },
+                    title: { type: "string", nullable: true },
+                    message: { type: "string", nullable: false },
+                    link: { type: "string", format: "uri", nullable: true },
+                    pinned: { type: "boolean", nullable: false },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "Announcement updated successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      data: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          title: { type: "string", nullable: true },
+                          message: { type: "string" },
+                          link: { type: "string", nullable: true },
+                          pinned: { type: "boolean" },
+                          createdById: { type: "string", nullable: true },
+                          createdAt: { type: "string", format: "date-time" },
+                          updatedAt: { type: "string", format: "date-time" },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "400": { description: "Invalid request body" },
+            "401": { description: "User information not found or invalid token" },
+            "403": { description: "Only admins can edit announcements" },
+            "404": { description: "Announcement not found" },
+            "500": { description: "Internal server error" },
+          },
+        },
+        delete: {
+          tags: ["Admin"],
+          summary: "Delete an announcement (Admin only)",
+          description: "Deletes the announcement by `id` query parameter.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "id",
+              in: "query",
+              required: true,
+              schema: { type: "string" },
+              description: "Announcement ID",
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Announcement deleted successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      data: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          title: { type: "string", nullable: true },
+                          message: { type: "string" },
+                          link: { type: "string", nullable: true },
+                          pinned: { type: "boolean" },
+                          createdById: { type: "string", nullable: true },
+                          createdAt: { type: "string", format: "date-time" },
+                          updatedAt: { type: "string", format: "date-time" },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "400": { description: "Missing id query parameter" },
+            "401": { description: "User information not found or invalid token" },
+            "403": { description: "Only admins can delete announcements" },
+            "404": { description: "Announcement not found" },
+            "500": { description: "Internal server error" },
+          },
+        },
       },
       "/api/admin/internships": {
         get: {
