@@ -33,6 +33,21 @@ enum Role {
   ADMIN
 }
 
+enum ComplaintStatus {
+  OPEN
+  IN_REVIEW
+  RESOLVED
+  DISMISSED
+}
+
+enum ComplaintCategory {
+  GENERAL
+  INTERNSHIP_SITE
+  FACULTY
+  PLACEMENT_OFFICE
+  OTHER
+}
+
 model User {
   id                      String           @id @default(uuid())
   email                   String           @unique
@@ -61,6 +76,8 @@ model User {
   facultySupervisorAssignments InternshipAssignment[] @relation("FacultySupervisorAssignments")
   siteSupervisorAssignments    InternshipAssignment[] @relation("SiteSupervisorAssignments")
   announcements                Announcement[]
+  complaintsSubmitted          Complaint[]            @relation("ComplaintSubmitted")
+  complaintsHandled            Complaint[]            @relation("ComplaintHandled")
 }
 
 model RefreshToken {
@@ -154,10 +171,33 @@ model Internship {
   internshipApprovalId   String?
   internshipAssignmentId String?
   internshipProposalId   String?
+  complaints             Complaint[]
 
   @@index([studentId])
   @@index([facultyId])
   @@index([siteId])
+}
+
+model Complaint {
+  id              String            @id @default(uuid())
+  subject         String
+  body            String            @db.Text
+  category        ComplaintCategory @default(GENERAL)
+  status          ComplaintStatus   @default(OPEN)
+  internshipId    String?
+  internship      Internship?       @relation(fields: [internshipId], references: [id])
+  submittedBy     User              @relation("ComplaintSubmitted", fields: [submittedById], references: [id])
+  submittedById   String
+  resolutionNotes String?           @db.Text
+  handledBy       User?             @relation("ComplaintHandled", fields: [handledById], references: [id])
+  handledById     String?
+  handledAt       DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([submittedById])
+  @@index([internshipId])
+  @@index([status, createdAt])
 }
 
 model InternshipApproval {

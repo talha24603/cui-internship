@@ -5,8 +5,8 @@ export async function GET() {
     openapi: "3.0.3",
     info: {
       title: "CUI Internship API",
-      version: "1.11.0",
-      description: "OpenAPI specification for CUI Internship API - Auth, Admin, Faculty, Student, Site Supervisor, and Dropdown endpoints. All protected routes use middleware-based authentication with Bearer tokens.",
+      version: "1.12.0",
+      description: "OpenAPI specification for CUI Internship API - Auth, Admin, Faculty, Student, Site Supervisor, Complaints, and Dropdown endpoints. All protected routes use middleware-based authentication with Bearer tokens.",
     },
     servers: [
       { url: "https://cui-internship-system.vercel.app", description: "Production" },
@@ -2780,6 +2780,238 @@ export async function GET() {
           }
         }
       },
+      "/api/student/complaints": {
+        post: {
+          tags: ["Student", "Complaints"],
+          summary: "Submit a complaint (Student only)",
+          description:
+            "Optional `internshipId` must belong to the authenticated student. If omitted, the complaint is general (handled by admin; faculty only see complaints linked to internships they supervise).",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["subject", "body"],
+                  properties: {
+                    subject: { type: "string" },
+                    body: { type: "string" },
+                    category: {
+                      type: "string",
+                      enum: ["GENERAL", "INTERNSHIP_SITE", "FACULTY", "PLACEMENT_OFFICE", "OTHER"],
+                    },
+                    internshipId: { type: "string", nullable: true },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "201": {
+              description: "Complaint submitted",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      complaint: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          subject: { type: "string" },
+                          body: { type: "string" },
+                          category: {
+                            type: "string",
+                            enum: ["GENERAL", "INTERNSHIP_SITE", "FACULTY", "PLACEMENT_OFFICE", "OTHER"],
+                          },
+                          status: {
+                            type: "string",
+                            enum: ["OPEN", "IN_REVIEW", "RESOLVED", "DISMISSED"],
+                          },
+                          internshipId: { type: "string", nullable: true },
+                          submittedById: { type: "string" },
+                          resolutionNotes: { type: "string", nullable: true },
+                          handledById: { type: "string", nullable: true },
+                          handledAt: { type: "string", format: "date-time", nullable: true },
+                          createdAt: { type: "string", format: "date-time" },
+                          updatedAt: { type: "string", format: "date-time" },
+                          internship: {
+                            type: "object",
+                            nullable: true,
+                            properties: {
+                              id: { type: "string" },
+                              status: { type: "string" },
+                              type: { type: "string" },
+                            },
+                          },
+                          handledBy: {
+                            type: "object",
+                            nullable: true,
+                            properties: {
+                              id: { type: "string" },
+                              name: { type: "string", nullable: true },
+                              email: { type: "string", format: "email" },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "400": { description: "Missing subject or body" },
+            "403": { description: "Only students can submit complaints" },
+            "404": { description: "Internship not found or not owned by student" },
+            "500": { description: "Internal server error" },
+          },
+        },
+        get: {
+          tags: ["Student", "Complaints"],
+          summary: "List my complaints (Student only)",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "status",
+              in: "query",
+              schema: {
+                type: "string",
+                enum: ["OPEN", "IN_REVIEW", "RESOLVED", "DISMISSED"],
+              },
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Complaints for the authenticated student",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      complaints: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            id: { type: "string" },
+                            subject: { type: "string" },
+                            body: { type: "string" },
+                            category: {
+                              type: "string",
+                              enum: ["GENERAL", "INTERNSHIP_SITE", "FACULTY", "PLACEMENT_OFFICE", "OTHER"],
+                            },
+                            status: {
+                              type: "string",
+                              enum: ["OPEN", "IN_REVIEW", "RESOLVED", "DISMISSED"],
+                            },
+                            internshipId: { type: "string", nullable: true },
+                            submittedById: { type: "string" },
+                            resolutionNotes: { type: "string", nullable: true },
+                            handledById: { type: "string", nullable: true },
+                            handledAt: { type: "string", format: "date-time", nullable: true },
+                            createdAt: { type: "string", format: "date-time" },
+                            updatedAt: { type: "string", format: "date-time" },
+                            internship: {
+                              type: "object",
+                              nullable: true,
+                              properties: {
+                                id: { type: "string" },
+                                status: { type: "string" },
+                                type: { type: "string" },
+                              },
+                            },
+                            handledBy: {
+                              type: "object",
+                              nullable: true,
+                              properties: {
+                                id: { type: "string" },
+                                name: { type: "string", nullable: true },
+                                email: { type: "string", format: "email" },
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "403": { description: "Only students can view their complaints" },
+            "500": { description: "Internal server error" },
+          },
+        },
+      },
+      "/api/student/complaints/{id}": {
+        get: {
+          tags: ["Student", "Complaints"],
+          summary: "Get a complaint by ID (Student only)",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { name: "id", in: "path", required: true, schema: { type: "string" } },
+          ],
+          responses: {
+            "200": {
+              description: "Complaint retrieved",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      complaint: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          subject: { type: "string" },
+                          body: { type: "string" },
+                          category: {
+                            type: "string",
+                            enum: ["GENERAL", "INTERNSHIP_SITE", "FACULTY", "PLACEMENT_OFFICE", "OTHER"],
+                          },
+                          status: {
+                            type: "string",
+                            enum: ["OPEN", "IN_REVIEW", "RESOLVED", "DISMISSED"],
+                          },
+                          internshipId: { type: "string", nullable: true },
+                          submittedById: { type: "string" },
+                          resolutionNotes: { type: "string", nullable: true },
+                          handledById: { type: "string", nullable: true },
+                          handledAt: { type: "string", format: "date-time", nullable: true },
+                          createdAt: { type: "string", format: "date-time" },
+                          updatedAt: { type: "string", format: "date-time" },
+                          internship: {
+                            type: "object",
+                            nullable: true,
+                            properties: {
+                              id: { type: "string" },
+                              status: { type: "string" },
+                              type: { type: "string" },
+                            },
+                          },
+                          handledBy: {
+                            type: "object",
+                            nullable: true,
+                            properties: {
+                              id: { type: "string" },
+                              name: { type: "string", nullable: true },
+                              email: { type: "string", format: "email" },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "403": { description: "Only students can view their complaints" },
+            "404": { description: "Complaint not found" },
+            "500": { description: "Internal server error" },
+          },
+        },
+      },
       "/api/student/final-result": {
         get: {
           tags: ["Student"],
@@ -3442,6 +3674,307 @@ export async function GET() {
             "500": { description: "Internal server error" }
           }
         }
+      },
+      "/api/faculty/complaints": {
+        get: {
+          tags: ["Faculty", "Complaints"],
+          summary: "List complaints for supervised internships (Faculty only)",
+          description:
+            "Returns complaints whose linked internship has `facultyId` equal to the authenticated faculty user. Same pagination and filters as the admin list.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "page",
+              in: "query",
+              schema: { type: "integer", minimum: 1, default: 1 },
+            },
+            {
+              name: "limit",
+              in: "query",
+              schema: { type: "integer", minimum: 1, maximum: 100, default: 10 },
+            },
+            {
+              name: "status",
+              in: "query",
+              schema: {
+                type: "string",
+                enum: ["OPEN", "IN_REVIEW", "RESOLVED", "DISMISSED"],
+              },
+            },
+            {
+              name: "search",
+              in: "query",
+              schema: { type: "string" },
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Complaints retrieved",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      complaints: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            id: { type: "string" },
+                            subject: { type: "string" },
+                            body: { type: "string" },
+                            category: {
+                              type: "string",
+                              enum: ["GENERAL", "INTERNSHIP_SITE", "FACULTY", "PLACEMENT_OFFICE", "OTHER"],
+                            },
+                            status: {
+                              type: "string",
+                              enum: ["OPEN", "IN_REVIEW", "RESOLVED", "DISMISSED"],
+                            },
+                            internshipId: { type: "string", nullable: true },
+                            submittedById: { type: "string" },
+                            resolutionNotes: { type: "string", nullable: true },
+                            handledById: { type: "string", nullable: true },
+                            handledAt: { type: "string", format: "date-time", nullable: true },
+                            createdAt: { type: "string", format: "date-time" },
+                            updatedAt: { type: "string", format: "date-time" },
+                            submittedBy: {
+                              type: "object",
+                              properties: {
+                                id: { type: "string" },
+                                name: { type: "string", nullable: true },
+                                email: { type: "string", format: "email" },
+                                regNo: { type: "string", nullable: true },
+                              },
+                            },
+                            handledBy: {
+                              type: "object",
+                              nullable: true,
+                              properties: {
+                                id: { type: "string" },
+                                name: { type: "string", nullable: true },
+                                email: { type: "string", format: "email" },
+                              },
+                            },
+                            internship: {
+                              type: "object",
+                              nullable: true,
+                              properties: {
+                                id: { type: "string" },
+                                status: { type: "string" },
+                                type: { type: "string" },
+                                studentId: { type: "string" },
+                                facultyId: { type: "string", nullable: true },
+                              },
+                            },
+                          },
+                        },
+                      },
+                      pagination: {
+                        type: "object",
+                        properties: {
+                          page: { type: "integer" },
+                          limit: { type: "integer" },
+                          total: { type: "integer" },
+                          pages: { type: "integer" },
+                        },
+                      },
+                      statistics: {
+                        type: "object",
+                        properties: {
+                          OPEN: { type: "integer" },
+                          IN_REVIEW: { type: "integer" },
+                          RESOLVED: { type: "integer" },
+                          DISMISSED: { type: "integer" },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "401": { description: "Authorization header with Bearer token is required" },
+            "403": { description: "Only faculty can view these complaints" },
+            "500": { description: "Internal server error" },
+          },
+        },
+      },
+      "/api/faculty/complaints/{id}": {
+        get: {
+          tags: ["Faculty", "Complaints"],
+          summary: "Get a complaint by ID (Faculty only)",
+          description: "Only if the complaint is linked to an internship supervised by this faculty member.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { name: "id", in: "path", required: true, schema: { type: "string" } },
+          ],
+          responses: {
+            "200": {
+              description: "Complaint retrieved",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      complaint: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          subject: { type: "string" },
+                          body: { type: "string" },
+                          category: {
+                            type: "string",
+                            enum: ["GENERAL", "INTERNSHIP_SITE", "FACULTY", "PLACEMENT_OFFICE", "OTHER"],
+                          },
+                          status: {
+                            type: "string",
+                            enum: ["OPEN", "IN_REVIEW", "RESOLVED", "DISMISSED"],
+                          },
+                          internshipId: { type: "string", nullable: true },
+                          submittedById: { type: "string" },
+                          resolutionNotes: { type: "string", nullable: true },
+                          handledById: { type: "string", nullable: true },
+                          handledAt: { type: "string", format: "date-time", nullable: true },
+                          createdAt: { type: "string", format: "date-time" },
+                          updatedAt: { type: "string", format: "date-time" },
+                          submittedBy: {
+                            type: "object",
+                            properties: {
+                              id: { type: "string" },
+                              name: { type: "string", nullable: true },
+                              email: { type: "string", format: "email" },
+                              regNo: { type: "string", nullable: true },
+                            },
+                          },
+                          handledBy: {
+                            type: "object",
+                            nullable: true,
+                            properties: {
+                              id: { type: "string" },
+                              name: { type: "string", nullable: true },
+                              email: { type: "string", format: "email" },
+                            },
+                          },
+                          internship: {
+                            type: "object",
+                            nullable: true,
+                            properties: {
+                              id: { type: "string" },
+                              status: { type: "string" },
+                              type: { type: "string" },
+                              studentId: { type: "string" },
+                              facultyId: { type: "string", nullable: true },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "403": { description: "Only faculty can view this complaint" },
+            "404": { description: "Complaint not found" },
+            "500": { description: "Internal server error" },
+          },
+        },
+        patch: {
+          tags: ["Faculty", "Complaints"],
+          summary: "Update complaint (Faculty only)",
+          description: "Same as admin PATCH; only for complaints tied to the faculty member's supervised internship.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { name: "id", in: "path", required: true, schema: { type: "string" } },
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    status: {
+                      type: "string",
+                      enum: ["OPEN", "IN_REVIEW", "RESOLVED", "DISMISSED"],
+                    },
+                    resolutionNotes: { type: "string", nullable: true },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "Complaint updated",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      complaint: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          subject: { type: "string" },
+                          body: { type: "string" },
+                          category: {
+                            type: "string",
+                            enum: ["GENERAL", "INTERNSHIP_SITE", "FACULTY", "PLACEMENT_OFFICE", "OTHER"],
+                          },
+                          status: {
+                            type: "string",
+                            enum: ["OPEN", "IN_REVIEW", "RESOLVED", "DISMISSED"],
+                          },
+                          internshipId: { type: "string", nullable: true },
+                          submittedById: { type: "string" },
+                          resolutionNotes: { type: "string", nullable: true },
+                          handledById: { type: "string", nullable: true },
+                          handledAt: { type: "string", format: "date-time", nullable: true },
+                          createdAt: { type: "string", format: "date-time" },
+                          updatedAt: { type: "string", format: "date-time" },
+                          submittedBy: {
+                            type: "object",
+                            properties: {
+                              id: { type: "string" },
+                              name: { type: "string", nullable: true },
+                              email: { type: "string", format: "email" },
+                              regNo: { type: "string", nullable: true },
+                            },
+                          },
+                          handledBy: {
+                            type: "object",
+                            nullable: true,
+                            properties: {
+                              id: { type: "string" },
+                              name: { type: "string", nullable: true },
+                              email: { type: "string", format: "email" },
+                            },
+                          },
+                          internship: {
+                            type: "object",
+                            nullable: true,
+                            properties: {
+                              id: { type: "string" },
+                              status: { type: "string" },
+                              type: { type: "string" },
+                              studentId: { type: "string" },
+                              facultyId: { type: "string", nullable: true },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "400": { description: "Invalid body" },
+            "403": { description: "Only faculty can update this complaint" },
+            "404": { description: "Complaint not found" },
+            "500": { description: "Internal server error" },
+          },
+        },
       },
       "/api/admin/office-evaluation": {
         post: {
@@ -4369,6 +4902,230 @@ export async function GET() {
             "500": { description: "Internal server error" }
           }
         }
+      },
+      "/api/admin/complaints": {
+        get: {
+          tags: ["Admin", "Complaints"],
+          summary: "List all complaints (Admin only)",
+          description: "Paginated list with optional status filter and search on subject/body. Includes per-status counts.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "page",
+              in: "query",
+              schema: { type: "integer", minimum: 1, default: 1 },
+            },
+            {
+              name: "limit",
+              in: "query",
+              schema: { type: "integer", minimum: 1, maximum: 100, default: 10 },
+            },
+            {
+              name: "status",
+              in: "query",
+              schema: {
+                type: "string",
+                enum: ["OPEN", "IN_REVIEW", "RESOLVED", "DISMISSED"],
+              },
+            },
+            {
+              name: "search",
+              in: "query",
+              schema: { type: "string" },
+              description: "Case-insensitive match on subject or body",
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Complaints retrieved",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      complaints: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            id: { type: "string" },
+                            subject: { type: "string" },
+                            body: { type: "string" },
+                            category: {
+                              type: "string",
+                              enum: ["GENERAL", "INTERNSHIP_SITE", "FACULTY", "PLACEMENT_OFFICE", "OTHER"],
+                            },
+                            status: {
+                              type: "string",
+                              enum: ["OPEN", "IN_REVIEW", "RESOLVED", "DISMISSED"],
+                            },
+                            internshipId: { type: "string", nullable: true },
+                            submittedById: { type: "string" },
+                            resolutionNotes: { type: "string", nullable: true },
+                            handledById: { type: "string", nullable: true },
+                            handledAt: { type: "string", format: "date-time", nullable: true },
+                            createdAt: { type: "string", format: "date-time" },
+                            updatedAt: { type: "string", format: "date-time" },
+                            submittedBy: {
+                              type: "object",
+                              properties: {
+                                id: { type: "string" },
+                                name: { type: "string", nullable: true },
+                                email: { type: "string", format: "email" },
+                                regNo: { type: "string", nullable: true },
+                              },
+                            },
+                            handledBy: {
+                              type: "object",
+                              nullable: true,
+                              properties: {
+                                id: { type: "string" },
+                                name: { type: "string", nullable: true },
+                                email: { type: "string", format: "email" },
+                              },
+                            },
+                            internship: {
+                              type: "object",
+                              nullable: true,
+                              properties: {
+                                id: { type: "string" },
+                                status: { type: "string" },
+                                type: { type: "string" },
+                                studentId: { type: "string" },
+                                facultyId: { type: "string", nullable: true },
+                              },
+                            },
+                          },
+                        },
+                      },
+                      pagination: {
+                        type: "object",
+                        properties: {
+                          page: { type: "integer" },
+                          limit: { type: "integer" },
+                          total: { type: "integer" },
+                          pages: { type: "integer" },
+                        },
+                      },
+                      statistics: {
+                        type: "object",
+                        properties: {
+                          OPEN: { type: "integer" },
+                          IN_REVIEW: { type: "integer" },
+                          RESOLVED: { type: "integer" },
+                          DISMISSED: { type: "integer" },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "401": { description: "Authorization header with Bearer token is required" },
+            "403": { description: "Only admins can view complaints" },
+            "500": { description: "Internal server error" },
+          },
+        },
+      },
+      "/api/admin/complaints/{id}": {
+        patch: {
+          tags: ["Admin", "Complaints"],
+          summary: "Update complaint status or resolution notes (Admin only)",
+          description: "Provide at least one of `status` or `resolutionNotes`. Sets `handledById` and `handledAt`.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { name: "id", in: "path", required: true, schema: { type: "string" } },
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    status: {
+                      type: "string",
+                      enum: ["OPEN", "IN_REVIEW", "RESOLVED", "DISMISSED"],
+                    },
+                    resolutionNotes: { type: "string", nullable: true },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "Complaint updated",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      complaint: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          subject: { type: "string" },
+                          body: { type: "string" },
+                          category: {
+                            type: "string",
+                            enum: ["GENERAL", "INTERNSHIP_SITE", "FACULTY", "PLACEMENT_OFFICE", "OTHER"],
+                          },
+                          status: {
+                            type: "string",
+                            enum: ["OPEN", "IN_REVIEW", "RESOLVED", "DISMISSED"],
+                          },
+                          internshipId: { type: "string", nullable: true },
+                          submittedById: { type: "string" },
+                          resolutionNotes: { type: "string", nullable: true },
+                          handledById: { type: "string", nullable: true },
+                          handledAt: { type: "string", format: "date-time", nullable: true },
+                          createdAt: { type: "string", format: "date-time" },
+                          updatedAt: { type: "string", format: "date-time" },
+                          submittedBy: {
+                            type: "object",
+                            properties: {
+                              id: { type: "string" },
+                              name: { type: "string", nullable: true },
+                              email: { type: "string", format: "email" },
+                              regNo: { type: "string", nullable: true },
+                            },
+                          },
+                          handledBy: {
+                            type: "object",
+                            nullable: true,
+                            properties: {
+                              id: { type: "string" },
+                              name: { type: "string", nullable: true },
+                              email: { type: "string", format: "email" },
+                            },
+                          },
+                          internship: {
+                            type: "object",
+                            nullable: true,
+                            properties: {
+                              id: { type: "string" },
+                              status: { type: "string" },
+                              type: { type: "string" },
+                              studentId: { type: "string" },
+                              facultyId: { type: "string", nullable: true },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "400": { description: "Invalid body (e.g. invalid status or empty patch)" },
+            "401": { description: "Authorization header with Bearer token is required" },
+            "403": { description: "Only admins can update complaints" },
+            "404": { description: "Complaint not found" },
+            "500": { description: "Internal server error" },
+          },
+        },
       },
       "/api/admin/appex-a": {
         get: {
@@ -5510,6 +6267,10 @@ export async function GET() {
       {
         name: "Site Supervisor",
         description: "Site supervisor functions - requires SITE_SUPERVISOR role",
+      },
+      {
+        name: "Complaints",
+        description: "Student-submitted complaints; admins see all, faculty see complaints linked to internships they supervise",
       },
       {
         name: "Cron",
