@@ -4100,6 +4100,59 @@ export async function GET() {
           }
         }
       },
+      "/api/announcements": {
+        get: {
+          tags: ["Public"],
+          summary: "Get public announcements",
+          description:
+            "Returns public announcements ordered by pinned first, then newest first.",
+          responses: {
+            "200": {
+              description: "Announcements retrieved successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      data: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            id: { type: "string" },
+                            title: { type: "string", nullable: true },
+                            message: { type: "string" },
+                            link: { type: "string", nullable: true },
+                            pinned: { type: "boolean" },
+                            createdById: { type: "string", nullable: true },
+                            createdAt: { type: "string", format: "date-time" },
+                            updatedAt: { type: "string", format: "date-time" },
+                            createdBy: {
+                              type: "object",
+                              nullable: true,
+                              properties: {
+                                id: { type: "string" },
+                                name: { type: "string", nullable: true },
+                                email: { type: "string", format: "email" },
+                                role: {
+                                  type: "string",
+                                  enum: ["STUDENT", "FACULTY", "SITE_SUPERVISOR", "ADMIN"],
+                                },
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "500": { description: "Internal server error" },
+          },
+        },
+      },
       "/api/admin/announcements": {
         get: {
           tags: ["Admin"],
