@@ -5294,6 +5294,90 @@ export async function GET() {
           }
         }
       },
+      "/api/admin/appex-c": {
+        get: {
+          tags: ["Admin"],
+          summary: "Get AppEx C submissions (Admin only)",
+          description: "Retrieve all AppEx C submissions. If `id` is provided, returns one specific AppEx C submission.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "id",
+              in: "query",
+              schema: { type: "string" },
+              description: "Optional: specific AppEx C submission ID"
+            }
+          ],
+          responses: {
+            "200": {
+              description: "AppEx C submissions retrieved successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      data: {
+                        oneOf: [
+                          {
+                            type: "array",
+                            items: {
+                              type: "object",
+                              properties: {
+                                id: { type: "string" },
+                                organizationOverview: { type: "string" },
+                                roleDescription: { type: "string" },
+                                keyActivities: { type: "string" },
+                                toolsTechnologies: { type: "string" },
+                                expectedDeliverables: { type: "string" },
+                                submittedDate: { type: "string", format: "date-time" },
+                                student: {
+                                  type: "object",
+                                  properties: {
+                                    id: { type: "string" },
+                                    name: { type: "string" },
+                                    email: { type: "string", format: "email" },
+                                    regNo: { type: "string" }
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          {
+                            type: "object",
+                            properties: {
+                              id: { type: "string" },
+                              organizationOverview: { type: "string" },
+                              roleDescription: { type: "string" },
+                              keyActivities: { type: "string" },
+                              toolsTechnologies: { type: "string" },
+                              expectedDeliverables: { type: "string" },
+                              submittedDate: { type: "string", format: "date-time" },
+                              student: {
+                                type: "object",
+                                properties: {
+                                  id: { type: "string" },
+                                  name: { type: "string" },
+                                  email: { type: "string", format: "email" },
+                                  regNo: { type: "string" }
+                                }
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "401": { description: "Authorization header with Bearer token is required" },
+            "403": { description: "Admin access required" },
+            "404": { description: "AppEx C submission not found (when id is provided)" },
+            "500": { description: "Internal server error" }
+          }
+        }
+      },
       "/api/admin/appex-b": {
         get: {
           tags: ["Admin"],
