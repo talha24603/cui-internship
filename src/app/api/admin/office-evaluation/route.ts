@@ -195,11 +195,17 @@ export async function POST(req: Request) {
         officeMarks: officeMarksScaled,
         totalMarks: totalMarksFinal,
         status,
+        isFinalizedByFaculty: false,
+        finalizedAt: null,
+        finalizedById: null,
       },
       update: {
         officeMarks: officeMarksScaled,
         totalMarks: totalMarksFinal,
         status,
+        isFinalizedByFaculty: false,
+        finalizedAt: null,
+        finalizedById: null,
       },
     });
 

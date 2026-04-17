@@ -159,12 +159,18 @@ export async function POST(req: Request) {
         officeMarks,
         totalMarks,
         status,
+        isFinalizedByFaculty: false,
+        finalizedAt: null,
+        finalizedById: null,
       },
       update: {
         facultyMarks: marks,
         siteMarks: siteFinalEvaluation ? siteMarks : undefined,
         totalMarks,
         status,
+        isFinalizedByFaculty: false,
+        finalizedAt: null,
+        finalizedById: null,
       },
     });
 
@@ -177,6 +183,7 @@ export async function POST(req: Request) {
           officeMarks: finalResult.officeMarks,
           totalMarks: finalResult.totalMarks,
           status: finalResult.status,
+          isFinalizedByFaculty: finalResult.isFinalizedByFaculty,
           maximumMarks: {
             faculty: FACULTY_MAX_MARKS,
             site: SITE_MAX_MARKS,
@@ -264,6 +271,7 @@ export async function GET(req: Request) {
       officeMarks: internship.finalResult?.officeMarks ?? null,
       totalMarks: internship.finalResult?.totalMarks ?? null,
       status: internship.finalResult?.status ?? null,
+      isFinalizedByFaculty: internship.finalResult?.isFinalizedByFaculty ?? false,
       maximumMarks: {
         faculty: FACULTY_MAX_MARKS,
         site: SITE_MAX_MARKS,

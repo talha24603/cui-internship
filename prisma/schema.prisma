@@ -316,6 +316,9 @@ model FinalResult {
   presentationMarks Int?
   totalMarks        Int
   status            String // pass, fail
+  isFinalizedByFaculty Boolean @default(false)
+  finalizedAt       DateTime?
+  finalizedById     String?
   hodSignatureUrl   String?
 }
 

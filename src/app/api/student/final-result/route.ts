@@ -49,7 +49,7 @@ export async function GET(req: Request) {
       );
     }
 
-    if (!internship.finalResult) {
+    if (!internship.finalResult || !internship.finalResult.isFinalizedByFaculty) {
       return NextResponse.json(
         {
           message: "Final result is not available yet",

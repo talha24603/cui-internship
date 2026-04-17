@@ -228,12 +228,18 @@ export async function POST(req: Request) {
         officeMarks,
         totalMarks: finalTotalMarks,
         status,
+        isFinalizedByFaculty: false,
+        finalizedAt: null,
+        finalizedById: null,
       },
       update: {
         facultyMarks: facultyMarksScaled,
         siteMarks: siteFinalEvaluation ? siteMarks : undefined,
         totalMarks: finalTotalMarks,
         status,
+        isFinalizedByFaculty: false,
+        finalizedAt: null,
+        finalizedById: null,
       },
     });
 

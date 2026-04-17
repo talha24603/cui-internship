@@ -3017,7 +3017,7 @@ export async function GET() {
           tags: ["Student"],
           summary: "Get final result for authenticated student",
           description:
-            "Returns the student's final result. If `internshipId` is provided, it fetches that internship (must belong to the student); otherwise, latest internship is used.",
+            "Returns the student's finalized final result. If `internshipId` is provided, it fetches that internship (must belong to the student); otherwise, latest internship is used. Response is unavailable until faculty finalization is complete.",
           security: [{ bearerAuth: [] }],
           parameters: [
             {
@@ -3049,6 +3049,9 @@ export async function GET() {
                           presentationMarks: { type: "integer", nullable: true },
                           totalMarks: { type: "integer" },
                           status: { type: "string", enum: ["pass", "fail"] },
+                          isFinalizedByFaculty: { type: "boolean" },
+                          finalizedAt: { type: "string", format: "date-time", nullable: true },
+                          finalizedById: { type: "string", nullable: true },
                           hodSignatureUrl: { type: "string", nullable: true },
                         },
                       },
@@ -3469,6 +3472,7 @@ export async function GET() {
                           officeMarks: { type: "integer" },
                           totalMarks: { type: "integer" },
                           status: { type: "string", enum: ["pass", "fail"] },
+                          isFinalizedByFaculty: { type: "boolean" },
                           maximumMarks: {
                             type: "object",
                             properties: {
@@ -3523,6 +3527,7 @@ export async function GET() {
                           officeMarks: { type: "integer", nullable: true },
                           totalMarks: { type: "integer", nullable: true },
                           status: { type: "string", nullable: true, enum: ["pass", "fail"] },
+                          isFinalizedByFaculty: { type: "boolean" },
                           maximumMarks: {
                             type: "object",
                             properties: {
@@ -3542,6 +3547,144 @@ export async function GET() {
             "400": { description: "Missing internshipId or invalid type parameter" },
             "401": { description: "User information not found or invalid token" },
             "403": { description: "User is not allowed to view evaluation summary for this internship" },
+            "404": { description: "Internship not found" },
+            "500": { description: "Internal server error" }
+          }
+        }
+      },
+      "/api/faculty/finalization": {
+        get: {
+          tags: ["Faculty", "Evaluation"],
+          summary: "Get marks overview for faculty finalization",
+          description:
+            "Returns faculty/site/office marks preview and current finalization state for an internship. Accessible to assigned faculty supervisor or admin.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "internshipId",
+              in: "query",
+              required: true,
+              schema: { type: "string" },
+              description: "Internship ID to retrieve finalization summary for"
+            }
+          ],
+          responses: {
+            "200": {
+              description: "Faculty finalization summary retrieved successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      data: {
+                        type: "object",
+                        properties: {
+                          internship: {
+                            type: "object",
+                            properties: {
+                              id: { type: "string" },
+                              status: { type: "string" },
+                              student: { type: "object", nullable: true },
+                              faculty: { type: "object", nullable: true }
+                            }
+                          },
+                          marks: {
+                            type: "object",
+                            properties: {
+                              facultyMarks: { type: "integer", nullable: true },
+                              siteMarks: { type: "integer", nullable: true },
+                              officeMarks: { type: "integer", nullable: true },
+                              totalPreview: { type: "integer" },
+                              statusPreview: { type: "string", enum: ["pass", "fail"] },
+                              maximumMarks: {
+                                type: "object",
+                                properties: {
+                                  faculty: { type: "integer", description: "40" },
+                                  site: { type: "integer", description: "40" },
+                                  office: { type: "integer", description: "20" },
+                                  total: { type: "integer", description: "100" }
+                                }
+                              }
+                            }
+                          },
+                          finalization: {
+                            type: "object",
+                            properties: {
+                              isFinalizedByFaculty: { type: "boolean" },
+                              finalizedAt: { type: "string", format: "date-time", nullable: true },
+                              finalizedById: { type: "string", nullable: true }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "400": { description: "Missing internshipId query parameter" },
+            "401": { description: "User information not found or invalid token" },
+            "403": { description: "Only assigned faculty supervisor or admin can access this internship" },
+            "404": { description: "Internship not found" },
+            "500": { description: "Internal server error" }
+          }
+        },
+        post: {
+          tags: ["Faculty", "Evaluation"],
+          summary: "Finalize internship result as faculty supervisor",
+          description:
+            "Faculty supervisor enters final marks for faculty, site supervisor, and office/admin components, then publishes finalized result for student visibility.",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["internshipId", "facultyMarks", "siteMarks", "officeMarks"],
+                  properties: {
+                    internshipId: { type: "string", description: "Internship ID to finalize" },
+                    facultyMarks: { type: "integer", minimum: 0, maximum: 40 },
+                    siteMarks: { type: "integer", minimum: 0, maximum: 40 },
+                    officeMarks: { type: "integer", minimum: 0, maximum: 20 }
+                  }
+                }
+              }
+            }
+          },
+          responses: {
+            "200": {
+              description: "Final result has been finalized by faculty supervisor",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      finalResult: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          internshipId: { type: "string" },
+                          facultyMarks: { type: "integer" },
+                          siteMarks: { type: "integer", nullable: true },
+                          officeMarks: { type: "integer" },
+                          totalMarks: { type: "integer" },
+                          status: { type: "string", enum: ["pass", "fail"] },
+                          isFinalizedByFaculty: { type: "boolean" },
+                          finalizedAt: { type: "string", format: "date-time", nullable: true },
+                          finalizedById: { type: "string", nullable: true }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "400": { description: "Missing required fields or marks out of range" },
+            "401": { description: "User information not found or invalid token" },
+            "403": { description: "Only assigned faculty supervisor or admin can finalize this internship" },
             "404": { description: "Internship not found" },
             "500": { description: "Internal server error" }
           }
