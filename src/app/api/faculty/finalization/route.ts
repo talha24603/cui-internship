@@ -98,7 +98,10 @@ async function getMarksBreakdown(internshipId: string) {
 export async function GET(req: Request) {
   try {
     const { userId, role, error } = getUser(req);
-    if (error || !userId || !role) return error;
+    if (error) return error;
+    if (!userId || !role) {
+      return NextResponse.json({ error: "User information not found" }, { status: 401 });
+    }
 
     const { searchParams } = new URL(req.url);
     const internshipId = searchParams.get("internshipId");
@@ -114,7 +117,10 @@ export async function GET(req: Request) {
       userId,
       role,
     );
-    if (authError || !internship) return authError;
+    if (authError) return authError;
+    if (!internship) {
+      return NextResponse.json({ error: "Internship not found" }, { status: 404 });
+    }
 
     const calculated = await getMarksBreakdown(internshipId);
     const finalResultRecord = internship.finalResult as
@@ -171,7 +177,10 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const { userId, role, error } = getUser(req);
-    if (error || !userId || !role) return error;
+    if (error) return error;
+    if (!userId || !role) {
+      return NextResponse.json({ error: "User information not found" }, { status: 401 });
+    }
 
     const body = await req.json();
     const { internshipId, facultyMarks, siteMarks, officeMarks } = body ?? {};
@@ -230,7 +239,10 @@ export async function POST(req: Request) {
       userId,
       role,
     );
-    if (authError || !internship) return authError;
+    if (authError) return authError;
+    if (!internship) {
+      return NextResponse.json({ error: "Internship not found" }, { status: 404 });
+    }
 
     const totalMarks = facultyMarks + siteMarks + officeMarks;
     const status = totalMarks >= PASS_THRESHOLD ? "pass" : "fail";
