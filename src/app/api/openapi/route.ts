@@ -3106,6 +3106,143 @@ export async function GET() {
           },
         },
       },
+      "/api/student/internship-report": {
+        get: {
+          tags: ["Student"],
+          summary: "Get internship final report (all roles except site supervisor)",
+          description:
+            "Returns the latest final internship report (`type: final`). Students can omit `internshipId` to get their latest own internship report; non-student roles must provide `internshipId`. Site supervisors are not allowed.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "internshipId",
+              in: "query",
+              required: false,
+              schema: { type: "string" },
+              description:
+                "Optional for STUDENT role, required for non-student roles to fetch a specific internship report",
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Internship final report retrieved successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      internship: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          status: {
+                            type: "string",
+                            enum: ["PENDING", "APPROVED", "COMPLETED", "REJECTED"],
+                          },
+                          startDate: {
+                            type: "string",
+                            format: "date-time",
+                            nullable: true,
+                          },
+                          endDate: {
+                            type: "string",
+                            format: "date-time",
+                            nullable: true,
+                          },
+                        },
+                      },
+                      report: {
+                        type: "object",
+                        nullable: true,
+                        properties: {
+                          id: { type: "string" },
+                          internshipId: { type: "string" },
+                          type: { type: "string", example: "final" },
+                          fileUrl: { type: "string" },
+                          summary: { type: "string", nullable: true },
+                          submittedDate: { type: "string", format: "date-time" },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "401": { description: "User information not found or invalid token" },
+            "403": { description: "Site supervisors are not allowed to access internship reports" },
+            "404": { description: "Internship not found" },
+            "400": {
+              description: "internshipId is required for non-student roles",
+            },
+            "500": { description: "Internal server error" },
+          },
+        },
+        post: {
+          tags: ["Student"],
+          summary: "Submit final internship report (PDF)",
+          description:
+            "Uploads a final internship report PDF for the authenticated student after internship end date. Uses multipart form data.",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "multipart/form-data": {
+                schema: {
+                  type: "object",
+                  required: ["internshipId", "file"],
+                  properties: {
+                    internshipId: { type: "string" },
+                    file: {
+                      type: "string",
+                      format: "binary",
+                      description: "PDF file",
+                    },
+                    summary: { type: "string" },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "201": {
+              description: "Internship final report submitted successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      report: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          internshipId: { type: "string" },
+                          type: { type: "string", example: "final" },
+                          fileUrl: { type: "string" },
+                          summary: { type: "string", nullable: true },
+                          submittedDate: { type: "string", format: "date-time" },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "400": {
+              description:
+                "Validation error (missing internshipId/file, non-PDF file, or internship not ended)",
+            },
+            "401": { description: "User information not found or invalid token" },
+            "403": { description: "Only students can access internship reports" },
+            "404": { description: "Internship not found for this student" },
+            "500": {
+              description:
+                "Internal server error or Cloudinary configuration missing",
+            },
+          },
+        },
+      },
       "/api/faculty/appex-a-approval": {
         get: {
           tags: ["Faculty"],
