@@ -32,7 +32,11 @@ export function middleware(req: NextRequest) {
     //   response.headers.set("Access-Control-Allow-Credentials", "true");
     // }
     response.headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
-    response.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    const requestedHeaders = req.headers.get("access-control-request-headers");
+    response.headers.set(
+      "Access-Control-Allow-Headers",
+      requestedHeaders || "Content-Type, Authorization, Cache-Control"
+    );
   };
 
   // Preflight OPTIONS

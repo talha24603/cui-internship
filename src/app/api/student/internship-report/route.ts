@@ -3,6 +3,8 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import prisma from "@/utils/prisma";
 import { v2 as cloudinary } from "cloudinary";
+import { PDFParse } from "pdf-parse";
+import { evaluateInternshipReportWithGrok } from "@/utils/ai/evaluateInternshipReport";
 
 function sanitizeFileName(name: string) {
   return name.replace(/[^a-zA-Z0-9._-]/g, "_");
@@ -29,11 +31,10 @@ function getCloudinaryPublicIdFromUrl(fileUrl: string) {
   }
 }
 
-async function uploadPdfToCloudinary(file: File, internshipId: string) {
-  const safeName = sanitizeFileName(file.name || "internship-report.pdf");
+async function uploadPdfToCloudinary(buffer: Buffer, fileName: string, internshipId: string) {
+  const safeName = sanitizeFileName(fileName || "internship-report.pdf");
   const baseName = safeName.replace(/\.[^.]+$/, "");
   const publicId = `${Date.now()}-${baseName}`;
-  const buffer = Buffer.from(await file.arrayBuffer());
 
   return await new Promise<{ secure_url: string }>((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
@@ -54,6 +55,19 @@ async function uploadPdfToCloudinary(file: File, internshipId: string) {
 
     stream.end(buffer);
   });
+}
+
+async function extractPdfText(buffer: Buffer) {
+  const parser = new PDFParse({ data: buffer });
+  try {
+    const parsed = await parser.getText();
+    return (parsed.text || "").trim();
+  } catch (error) {
+    console.warn("Failed to extract PDF text:", error);
+    return "";
+  } finally {
+    await parser.destroy().catch(() => undefined);
+  }
 }
 
 function getStudentUser(req: Request) {
@@ -248,7 +262,10 @@ export async function POST(req: Request) {
       );
     }
 
-    const uploaded = await uploadPdfToCloudinary(file, internshipId);
+    const pdfBuffer = Buffer.from(await file.arrayBuffer());
+    const extractedText = await extractPdfText(pdfBuffer);
+
+    const uploaded = await uploadPdfToCloudinary(pdfBuffer, file.name, internshipId);
     const publicFileUrl = uploaded.secure_url;
 
     const existingFinalReport = await prisma.internshipReport.findFirst({
@@ -285,10 +302,61 @@ export async function POST(req: Request) {
       });
     }
 
+    const aiAssessment = await evaluateInternshipReportWithGrok({
+      reportText: extractedText || summary,
+      studentSummary: summary,
+      internshipId,
+    }).catch((error) => {
+      console.warn("AI report assessment failed:", error);
+      return null;
+    });
+
+    if (aiAssessment) {
+      const existingAiEvaluation = await prisma.evaluation.findFirst({
+        where: {
+          internshipId,
+          type: "ai_report_review",
+        },
+        orderBy: { submittedDate: "desc" },
+      });
+
+      const aiDetails = {
+        model: process.env.GROK_MODEL || "grok-3-mini",
+        reportId: report.id,
+        reportFileUrl: report.fileUrl,
+        extractedTextLength: extractedText.length,
+        assessment: aiAssessment,
+      };
+
+      if (existingAiEvaluation) {
+        await prisma.evaluation.update({
+          where: { id: existingAiEvaluation.id },
+          data: {
+            marks: aiAssessment.suggestedMarks.total,
+            comments: aiAssessment.summary,
+            details: aiDetails,
+            submittedDate: new Date(),
+          },
+        });
+      } else {
+        await prisma.evaluation.create({
+          data: {
+            internshipId,
+            evaluatorId: null,
+            type: "ai_report_review",
+            marks: aiAssessment.suggestedMarks.total,
+            comments: aiAssessment.summary,
+            details: aiDetails,
+          },
+        });
+      }
+    }
+
     return NextResponse.json(
       {
         message: "Internship final report submitted successfully",
         report,
+        aiAssessmentGenerated: Boolean(aiAssessment),
       },
       { status: 201 },
     );
