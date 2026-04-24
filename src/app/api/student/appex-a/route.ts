@@ -210,9 +210,9 @@ export async function PUT(req: Request) {
     }
 
     // Check if AppEx A is already approved/rejected
-    if (existingAppexA.status !== 'pending') {
+    if (existingAppexA.status === 'approved') {
       return NextResponse.json({
-        error: "Cannot update AppEx A that has been approved or rejected"
+        error: "Cannot update AppEx A that has been approved"
       }, { status: 403 });
     }
 
@@ -253,6 +253,7 @@ export async function PUT(req: Request) {
         endDate: endDate ? new Date(endDate) : existingAppexA.endDate,
         workingDays: workingDays ?? existingAppexA.workingDays,
         workingHours: workingHours ?? existingAppexA.workingHours,
+        status: 'pending'
       }
     });
 

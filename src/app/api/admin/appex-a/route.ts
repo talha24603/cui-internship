@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/utils/prisma";
 
-// GET /api/admin/appex-a - Get all AppEx A submissions (Admin only, limited fields)
+// GET /api/admin/appex-a - Get all AppEx A submissions (Admin only)
 export async function GET(req: Request) {
   try {
     const userRole = req.headers.get("x-user-role");
@@ -28,8 +28,21 @@ export async function GET(req: Request) {
       where,
       select: {
         id: true,
+        organization: true,
+        address: true,
+        industrySector: true,
+        contactName: true,
+        contactDesignation: true,
+        contactPhone: true,
+        contactEmail: true,
+        internshipNature: true,
+        internshipLocation: true,
+        mode: true,
+        numberOfInternship: true,
         startDate: true,
         endDate: true,
+        workingDays: true,
+        workingHours: true,
         status: true,
         student: {
           select: {

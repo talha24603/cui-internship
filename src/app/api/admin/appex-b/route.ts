@@ -1,6 +1,26 @@
 import { NextResponse } from "next/server";
 import prisma from "@/utils/prisma";
 
+function normalizeDateInput(value: unknown): string | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null || value === "") return null;
+  if (typeof value !== "string") return undefined;
+
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return new Date(`${trimmed}T00:00:00.000Z`).toISOString();
+  }
+
+  const parsed = new Date(trimmed);
+  if (Number.isNaN(parsed.getTime())) {
+    return undefined;
+  }
+
+  return parsed.toISOString();
+}
+
 // GET /api/admin/appex-b - Get all AppEx B (InternshipAssignment) submissions (Admin only)
 // GET /api/admin/appex-b?id=xxx - Get a specific AppEx B by ID (Admin only)
 export async function GET(req: Request) {
@@ -207,8 +227,26 @@ export async function PATCH(req: Request) {
       }
       updateData.durationWeeks = durationWeeks;
     }
-    if (startDate !== undefined) updateData.startDate = startDate;
-    if (endDate !== undefined) updateData.endDate = endDate;
+    if (startDate !== undefined) {
+      const normalizedStartDate = normalizeDateInput(startDate);
+      if (normalizedStartDate === undefined) {
+        return NextResponse.json(
+          { error: "startDate must be a valid date or ISO-8601 datetime" },
+          { status: 400 }
+        );
+      }
+      updateData.startDate = normalizedStartDate;
+    }
+    if (endDate !== undefined) {
+      const normalizedEndDate = normalizeDateInput(endDate);
+      if (normalizedEndDate === undefined) {
+        return NextResponse.json(
+          { error: "endDate must be a valid date or ISO-8601 datetime" },
+          { status: 400 }
+        );
+      }
+      updateData.endDate = normalizedEndDate;
+    }
 
     // Validate and update facultyId if provided
     if (facultyId !== undefined) {
