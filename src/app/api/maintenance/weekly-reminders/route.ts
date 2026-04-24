@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import prisma from "@/utils/prisma";
 import { sendWeeklyLogReminder, sendMidReportNotification } from "@/utils/mailer";
-const { differenceInWeeks, addWeeks } = require("date-fns");
+import { differenceInWeeks, addWeeks } from "date-fns";
+import { calculateTotalWeeks, calculateCurrentWeek } from "@/utils/internship-dates";
 
 export async function GET() {
   try {
@@ -13,7 +14,7 @@ export async function GET() {
       include: {
         student: true,
         site: true,
-        assignment: true,
+      //  assignment: true,
         weeklyLogs: {
           orderBy: {
             weekNo: 'desc'
@@ -28,19 +29,26 @@ export async function GET() {
     let midReportNotifications = 0;
 
     for (const internship of internships) {
-      // Skip if no start date or assignment
-      if (!internship.startDate || !internship.assignment) {
+      // Skip if no start date or end date
+      if (!internship.startDate || !internship.endDate) {
         continue;
       }
 
-      const weeksPassed = differenceInWeeks(now, internship.startDate);
-      const totalWeeks = internship.assignment.durationWeeks;
+      // Calculate total weeks from start and end dates
+      const totalWeeks = calculateTotalWeeks(internship.startDate, internship.endDate);
+
+      // Skip if totalWeeks is 0 or invalid
+      if (totalWeeks <= 0) {
+        continue;
+      }
+
+      // Calculate current week
+      const currentWeek = calculateCurrentWeek(internship.startDate, now);
 
       // Check if internship is still ongoing
-      if (weeksPassed < totalWeeks) {
+      if (currentWeek > 0 && currentWeek <= totalWeeks) {
         // Check if student needs to submit a weekly log
         const lastSubmittedWeek = internship.weeklyLogs[0]?.weekNo || 0;
-        const currentWeek = weeksPassed + 1;
 
         // Send reminder if student hasn't submitted current week's log
         if (currentWeek > lastSubmittedWeek) {

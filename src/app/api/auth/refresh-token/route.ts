@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { verifyRefreshToken, signAccessToken, getValidRefreshToken } from "@/utils/authhelper";
+import prisma from "@/utils/prisma";
+import {
+  verifyRefreshToken,
+  signAccessToken,
+  getValidRefreshToken,
+} from "@/utils/authhelper";
 
 export async function GET(req: Request) {
   try {
@@ -29,7 +34,9 @@ export async function GET(req: Request) {
       sub: payload.sub,
       role: storedToken.user.role,
       name: storedToken.user.name,
-      email: storedToken.user.email
+      email: storedToken.user.email,
+      supervisorId: storedToken.user.role === "SITE_SUPERVISOR" ? storedToken.user.id : undefined,
+      facultyId: storedToken.user.role === "FACULTY" ? storedToken.user.id : undefined,
     });
 
     return NextResponse.json({ 

@@ -19,8 +19,8 @@ export async function POST(req: Request) {
 
     const body = await req.json();
     const rawType: unknown = body?.type;
-    // const facultyId: string | undefined = body?.facultyId ?? undefined;
-    // const siteId: string | undefined = body?.siteId ?? undefined;
+    const facultyId: string | undefined = body?.facultyId ?? undefined;
+    const siteId: string | undefined = body?.siteId ?? undefined;
 
     // Validate internship type
     const validTypes = Object.values(InternshipType);
@@ -28,6 +28,41 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid or missing internship type. Allowed: ONSITE, REMOTE, FIVERR" }, { status: 400 });
     }
     const type = rawType as InternshipType;
+
+    // Validate site supervisor if provided
+    if (siteId) {
+      const siteSupervisor = await prisma.user.findUnique({
+        where: { id: siteId },
+        include: { company: true }
+      });
+
+      if (!siteSupervisor) {
+        return NextResponse.json({ error: "Site supervisor not found" }, { status: 404 });
+      }
+
+      if (siteSupervisor.role !== 'SITE_SUPERVISOR') {
+        return NextResponse.json({ error: "User is not a site supervisor" }, { status: 400 });
+      }
+
+      if (!siteSupervisor.company) {
+        return NextResponse.json({ error: "Site supervisor is not assigned to any company" }, { status: 400 });
+      }
+    }
+
+    // Validate faculty if provided
+    if (facultyId) {
+      const faculty = await prisma.user.findUnique({
+        where: { id: facultyId }
+      });
+
+      if (!faculty) {
+        return NextResponse.json({ error: "Faculty member not found" }, { status: 404 });
+      }
+
+      if (faculty.role !== 'FACULTY') {
+        return NextResponse.json({ error: "User is not a faculty member" }, { status: 400 });
+      }
+    }
 
     // Ensure student does not already have a pending/approved internship
     const existing = await prisma.internship.findFirst({
@@ -47,15 +82,27 @@ export async function POST(req: Request) {
         studentId: userId,
         type,
         status: InternshipStatus.PENDING,
-        // Optionally associate faculty/site if provided and valid
-        // facultyId: facultyId ?? null,
-        // siteId: siteId ?? null,
+        facultyId: facultyId ?? null,
+        siteId: siteId ?? null,
+      },
+      include: {
+        student: { select: { id: true, name: true, email: true, regNo: true } },
+        faculty: { select: { id: true, name: true, email: true } },
+        site: { 
+          select: { 
+            id: true, 
+            name: true, 
+            email: true,
+            company: {
+              select: {
+                id: true,
+                name: true,
+                industry: true
+              }
+            }
+          } 
+        },
       }
-      // include: {
-      //   student: { select: { id: true, name: true, email: true, regNo: true } },
-      //   faculty: { select: { id: true, name: true, email: true } },
-      //   site: { select: { id: true, name: true, email: true } },
-      // }
     });
 
     return NextResponse.json({

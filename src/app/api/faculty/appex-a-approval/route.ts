@@ -32,12 +32,8 @@ export async function GET(req: Request) {
       prisma.internshipApproval.findMany({
         where: whereClause,
         include: {
-          internship: {
-            include: {
-              student: {
-                select: { id: true, name: true, email: true, regNo: true }
-              }
-            }
+          student: {
+            select: { id: true, name: true, email: true, regNo: true }
           }
         },
         orderBy: { id: 'desc' },
@@ -98,12 +94,8 @@ export async function PATCH(req: Request) {
     const appexA = await prisma.internshipApproval.findUnique({
       where: { id: appexAId },
       include: {
-        internship: {
-          include: {
-            student: {
-              select: { id: true, name: true, email: true, regNo: true }
-            }
-          }
+        student: {
+          select: { id: true, name: true, email: true, regNo: true }
         }
       }
     });
@@ -119,34 +111,20 @@ export async function PATCH(req: Request) {
     }
 
     // Update AppEx A status
+    // Note: Only admin approval of AppEx A will approve the internship
+    // Faculty approval only updates AppEx A status, not the internship
     const updatedAppexA = await prisma.internshipApproval.update({
       where: { id: appexAId },
       data: { status }
     });
 
-    // If approved, update the internship with start and end dates
-    if (status === 'approved') {
-      await prisma.internship.update({
-        where: { id: appexA.internshipId },
-        data: {
-          status: 'APPROVED',
-          startDate: appexA.startDate,
-          endDate: appexA.endDate
-        }
-      });
-    }
-
     // Log the approval/rejection (you might want to create a separate table for this)
-    console.log(`${userRole} ${userId} ${status} AppEx A for student ${appexA.internship.student.name} (${appexA.internship.student.regNo}). Comments: ${comments || 'None'}`);
+    console.log(`${userRole} ${userId} ${status} AppEx A for student ${appexA.student.name} (${appexA.student.regNo}). Comments: ${comments || 'None'}`);
 
     return NextResponse.json({
       message: `AppEx A ${status} successfully`,
       appexA: updatedAppexA,
-      internship: {
-        id: appexA.internship.id,
-        student: appexA.internship.student,
-        status: status === 'approved' ? 'APPROVED' : 'PENDING'
-      }
+      student: appexA.student
     });
 
   } catch (error) {
