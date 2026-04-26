@@ -12,31 +12,25 @@ import { verifyAccessToken } from "@/utils/authhelper";
 // ];
 
 export function middleware(req: NextRequest) {
-  const origin = req.headers.get("origin") || "";
   const url = new URL(req.url);
   const requestHeaders = new Headers(req.headers);
 
   const setCorsHeaders = (response: NextResponse) => {
     // --- CORS ---
-    // Allow all origins
-    if (origin) {
-      response.headers.set("Access-Control-Allow-Origin", origin);
-      response.headers.set("Access-Control-Allow-Credentials", "true");
-    } else {
-      response.headers.set("Access-Control-Allow-Origin", "*");
-    }
-
-    // Previous CORS logic with allowedOrigins check:
-    // if (allowedOrigins.includes(origin)) {
-    //   response.headers.set("Access-Control-Allow-Origin", origin );
-    //   response.headers.set("Access-Control-Allow-Credentials", "true");
-    // }
+    // Allow all origins for all API routes.
+    response.headers.set("Access-Control-Allow-Origin", "*");
     response.headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
     const requestedHeaders = req.headers.get("access-control-request-headers");
     response.headers.set(
       "Access-Control-Allow-Headers",
       requestedHeaders || "Content-Type, Authorization, Cache-Control"
     );
+  };
+
+  const jsonWithCors = (body: unknown, init?: ResponseInit) => {
+    const response = NextResponse.json(body, init);
+    setCorsHeaders(response);
+    return response;
   };
 
   // Preflight OPTIONS
@@ -55,7 +49,7 @@ export function middleware(req: NextRequest) {
     const authHeader = req.headers.get("Authorization");
 
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return NextResponse.json(
+      return jsonWithCors(
         { error: "Authorization header with Bearer token is required" },
         { status: 401 }
       );
@@ -74,7 +68,7 @@ export function middleware(req: NextRequest) {
       requestHeaders.set("x-faculty-id", typeof payload.facultyId === "string" ? payload.facultyId : "");
 
     } catch (err) {
-      return NextResponse.json(
+      return jsonWithCors(
         { error: "Invalid or expired token " + err },
         { status: 401 }
       );
