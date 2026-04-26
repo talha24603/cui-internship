@@ -72,18 +72,18 @@ async function getAndAuthorizeInternship(
     };
   }
 
-  if (internship.status !== "APPROVED" && internship.status !== "COMPLETED") {
-    return {
-      errorResponse: NextResponse.json(
-        {
-          error:
-            "Evaluation marks can only be added for approved or completed internships",
-        },
-        { status: 400 },
-      ),
-      internship: null,
-    };
-  }
+  // if (internship.status !== "APPROVED" && internship.status !== "COMPLETED") {
+  //   return {
+  //     errorResponse: NextResponse.json(
+  //       {
+  //         error:
+  //           "Evaluation marks can only be added for approved or completed internships",
+  //       },
+  //       { status: 400 },
+  //     ),
+  //     internship: null,
+  //   };
+  // }
 
   return { errorResponse: null, internship };
 }

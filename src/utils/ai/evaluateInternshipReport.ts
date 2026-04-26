@@ -1,4 +1,4 @@
-import OpenAI from "openai";
+import Groq from "groq-sdk";
 
 export type AiReportAssessment = {
   summary: string;
@@ -20,14 +20,11 @@ type EvaluateInternshipReportInput = {
   internshipId: string;
 };
 
-function getGrokClient(): OpenAI | null {
+function getGrokClient(): Groq | null {
   const apiKey = process.env.GROK_API_KEY;
   if (!apiKey) return null;
 
-  return new OpenAI({
-    apiKey,
-    baseURL: "https://api.x.ai/v1",
-  });
+  return new Groq({ apiKey });
 }
 
 function safeJsonParse(content: string): AiReportAssessment | null {
@@ -57,7 +54,8 @@ export async function evaluateInternshipReportWithGrok(
   const client = getGrokClient();
   if (!client) return null;
 
-  const model = process.env.GROK_MODEL || "grok-3-mini";
+  // Keep model/provider aligned with chat intent detection (Groq).
+  const model = process.env.GROK_MODEL || "openai/gpt-oss-20b";
   const reportText = input.reportText.slice(0, 18000);
   const summary = (input.studentSummary || "").slice(0, 3000);
 

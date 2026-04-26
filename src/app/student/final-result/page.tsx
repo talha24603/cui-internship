@@ -11,7 +11,9 @@ type FinalResultResponse = {
   message: string;
   finalResult: {
     total?: number;
+    totalMarks?: number;
     grade?: string;
+    status?: string;
     isFinalizedByFaculty?: boolean;
     [key: string]: unknown;
   } | null;
@@ -27,6 +29,8 @@ type FinalResultResponse = {
 export default function FinalResultPage() {
   const [data, setData] = useState<FinalResultResponse | null>(null);
   const [error, setError] = useState("");
+  const total = data?.finalResult?.total ?? data?.finalResult?.totalMarks;
+  const grade = data?.finalResult?.grade ?? data?.finalResult?.status;
 
   useEffect(() => {
     authJson<FinalResultResponse>("/api/student/final-result")
@@ -51,7 +55,7 @@ export default function FinalResultPage() {
               <ClipboardCheck className="h-4 w-4" />
             </div>
             <p className="text-xs uppercase tracking-wide text-slate-500">Internship</p>
-            <p className="mt-1 text-sm text-slate-900">{data.internship?.type ?? "N/A"}</p>
+            <p className="mt-1 text-sm text-slate-900 dark:text-slate-100">{data.internship?.type ?? "N/A"}</p>
             <div className="mt-2">{data.internship?.status ? <StatusBadge status={data.internship.status} /> : null}</div>
           </Card>
           <Card>
@@ -59,7 +63,7 @@ export default function FinalResultPage() {
               <BadgeCheck className="h-4 w-4" />
             </div>
             <p className="text-xs uppercase tracking-wide text-slate-500">Faculty / Site</p>
-            <p className="mt-1 text-sm text-slate-900">
+            <p className="mt-1 text-sm text-slate-900 dark:text-slate-100">
               {data.internship?.faculty?.name ?? "N/A"} / {data.internship?.site?.name ?? "N/A"}
             </p>
           </Card>
@@ -68,15 +72,15 @@ export default function FinalResultPage() {
               <GraduationCap className="h-4 w-4" />
             </div>
             <p className="text-xs uppercase tracking-wide text-slate-500">Grade</p>
-            <p className="mt-1 text-2xl font-semibold text-slate-900">{data.finalResult?.grade ?? "Pending"}</p>
+            <p className="mt-1 text-2xl font-semibold text-slate-900 dark:text-slate-100">{grade ?? "Pending"}</p>
           </Card>
           <Card>
             <div className="mb-3 inline-flex rounded-lg bg-amber-100 p-2 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">
               <Award className="h-4 w-4" />
             </div>
             <p className="text-xs uppercase tracking-wide text-slate-500">Total Marks</p>
-            <p className="mt-1 text-2xl font-semibold text-slate-900">
-              {data.finalResult?.total ?? "Pending"}
+            <p className="mt-1 text-2xl font-semibold text-slate-900 dark:text-slate-100">
+              {total ?? "Pending"}
             </p>
           </Card>
         </div>
