@@ -10,6 +10,7 @@ import ThemeToggle from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { type AuthSession, getSession } from "@/utils/authClient";
 
 type Announcement = {
   id: string;
@@ -24,6 +25,8 @@ export default function HomePage() {
   const logoRef = useRef<HTMLDivElement>(null);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loadingAnnouncements, setLoadingAnnouncements] = useState(true);
+  const [session, setSession] = useState<AuthSession | null>(null);
+  const [sessionChecked, setSessionChecked] = useState(false);
 
   useEffect(() => {
     if (!logoRef.current) return;
@@ -49,6 +52,22 @@ export default function HomePage() {
       .catch(() => setAnnouncements([]))
       .finally(() => setLoadingAnnouncements(false));
   }, []);
+
+  useEffect(() => {
+    setSession(getSession());
+    setSessionChecked(true);
+  }, []);
+
+  const dashboardHref =
+    session?.user.role === "STUDENT"
+      ? "/student"
+      : session?.user.role === "FACULTY"
+      ? "/faculty"
+      : session?.user.role === "ADMIN"
+      ? "/admin"
+      : session?.user.role === "SITE_SUPERVISOR"
+      ? "/site"
+      : "/dashboard";
 
   return (
     <main className="min-h-screen px-4 py-10 md:px-6">
@@ -77,14 +96,22 @@ export default function HomePage() {
                   workflows, approvals, evaluations, and finalization in one place.
                 </p>
                 <div className="mt-7 flex flex-wrap gap-3">
-                  <Link href="/login">
-                    <Button size="lg">Login</Button>
-                  </Link>
-                  <Link href="/signup">
-                    <Button size="lg" variant="outline">
-                      Signup
-                    </Button>
-                  </Link>
+                  {!sessionChecked ? null : session ? (
+                    <Link href={dashboardHref}>
+                      <Button size="lg">Go to Dashboard</Button>
+                    </Link>
+                  ) : (
+                    <>
+                      <Link href="/login">
+                        <Button size="lg">Login</Button>
+                      </Link>
+                      <Link href="/signup">
+                        <Button size="lg" variant="outline">
+                          Signup
+                        </Button>
+                      </Link>
+                    </>
+                  )}
                 </div>
               </div>
 

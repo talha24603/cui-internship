@@ -3,7 +3,7 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import prisma from "@/utils/prisma";
 import { v2 as cloudinary } from "cloudinary";
-import { PDFParse } from "pdf-parse";
+import { PdfReader } from "pdfreader";
 import { evaluateInternshipReportWithGrok } from "@/utils/ai/evaluateInternshipReport";
 
 function sanitizeFileName(name: string) {
@@ -58,16 +58,43 @@ async function uploadPdfToCloudinary(buffer: Buffer, fileName: string, internshi
 }
 
 async function extractPdfText(buffer: Buffer) {
-  const parser = new PDFParse({ data: buffer });
-  try {
-    const parsed = await parser.getText();
-    return (parsed.text || "").trim();
-  } catch (error) {
-    console.warn("Failed to extract PDF text:", error);
-    return "";
-  } finally {
-    await parser.destroy().catch(() => undefined);
-  }
+  return await new Promise<string>((resolve) => {
+    const lines: string[] = [];
+    let currentY: number | null = null;
+    let currentLineParts: string[] = [];
+
+    const flushLine = () => {
+      const line = currentLineParts.join(" ").replace(/\s+/g, " ").trim();
+      if (line) lines.push(line);
+      currentLineParts = [];
+    };
+
+    new PdfReader().parseBuffer(buffer, (error, item) => {
+      if (error) {
+        const parsedError: unknown = error;
+        const message = parsedError instanceof Error ? parsedError.message : "Unknown PDF parsing error";
+        console.warn("Failed to extract PDF text:", message);
+        resolve("");
+        return;
+      }
+
+      // End-of-file sentinel
+      if (!item) {
+        flushLine();
+        resolve(lines.join("\n").trim());
+        return;
+      }
+
+      if (typeof item.y === "number" && currentY !== item.y) {
+        flushLine();
+        currentY = item.y;
+      }
+
+      if (typeof item.text === "string" && item.text.trim()) {
+        currentLineParts.push(item.text);
+      }
+    });
+  });
 }
 
 function getStudentUser(req: Request) {
@@ -255,15 +282,25 @@ export async function POST(req: Request) {
       );
     }
 
-    if (!internship.endDate || internship.endDate > new Date()) {
-      return NextResponse.json(
-        { error: "Internship report can only be submitted after internship end date" },
-        { status: 400 },
-      );
-    }
+    // if (!internship.endDate || internship.endDate > new Date()) {
+    //   return NextResponse.json(
+    //     { error: "Internship report can only be submitted after internship end date" },
+    //     { status: 400 },
+    //   );
+    // }
 
     const pdfBuffer = Buffer.from(await file.arrayBuffer());
     const extractedText = await extractPdfText(pdfBuffer);
+
+    if (!extractedText && !summary) {
+      return NextResponse.json(
+        {
+          error:
+            "Could not extract text from PDF in current server environment. Please provide the summary field so AI evaluation can proceed.",
+        },
+        { status: 400 },
+      );
+    }
 
     const uploaded = await uploadPdfToCloudinary(pdfBuffer, file.name, internshipId);
     const publicFileUrl = uploaded.secure_url;
@@ -302,8 +339,15 @@ export async function POST(req: Request) {
       });
     }
 
+    const reportTextForAi = extractedText
+      ? extractedText
+      : `Internship report text extraction was unavailable in this environment.
+
+Student provided summary:
+${summary}`.trim();
+
     const aiAssessment = await evaluateInternshipReportWithGrok({
-      reportText: extractedText || summary,
+      reportText: reportTextForAi,
       studentSummary: summary,
       internshipId,
     }).catch((error) => {
