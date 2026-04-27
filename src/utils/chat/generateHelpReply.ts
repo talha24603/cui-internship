@@ -30,24 +30,130 @@ function buildContextBlock(context: RetrievedHelpItem[]) {
     .join("\n\n");
 }
 
+function roleScopeFromContext(context: RetrievedHelpItem[]) {
+  const roles = new Set<string>();
+  for (const item of context) {
+    for (const role of item.roleScope) roles.add(role);
+  }
+  if (roles.size === 0) return "ALL roles (generic guidance)";
+  return [...roles].join(", ");
+}
+
+function isSmallTalkMessage(message: string) {
+  const normalized = message.trim().toLowerCase();
+  if (!normalized) return false;
+  const compact = normalized.replace(/[^\w\s]/g, "");
+  const greetings = new Set([
+    "hi",
+    "hello",
+    "hey",
+    "ok",
+    "okay",
+    "thanks",
+    "thank you",
+    "good morning",
+    "good afternoon",
+    "good evening",
+    "how are you",
+  ]);
+  if (greetings.has(compact)) return true;
+
+  const words = compact.split(/\s+/).filter(Boolean);
+  if (words.length <= 3 && words.every((w) => ["hi", "hello", "hey", "thanks", "okay", "ok"].includes(w))) {
+    return true;
+  }
+  return false;
+}
+
+function formatStructuredAnswer(params: {
+  shortAnswer: string;
+  steps: string[];
+  roleScope: string;
+  confidence: "high" | "medium" | "low";
+}) {
+  const steps = params.steps.length > 0 ? params.steps : ["Follow the module flow shown in your dashboard."];
+
+  return [
+    "### Short answer",
+    params.shortAnswer.trim(),
+    "",
+    "### What to do",
+    ...steps.slice(0, 3).map((step, index) => `${index + 1}. ${step}`),
+    "",
+    "### Who can do this",
+    `- ${params.roleScope}`,
+    "",
+    "### Confidence",
+    params.confidence,
+  ].join("\n");
+}
+
+function enforceStructuredFormat(raw: string, fallback: string) {
+  const normalized = raw.trim();
+  const orderedHeadingPatterns = [
+    /^### Short answer\s*$/m,
+    /^### What to do\s*$/m,
+    /^### Who can do this\s*$/m,
+    /^### Confidence\s*$/m,
+  ];
+  const headingPositions = orderedHeadingPatterns.map((pattern) => normalized.search(pattern));
+  const hasAllHeadings = headingPositions.every((pos) => pos >= 0);
+  if (!hasAllHeadings) return fallback;
+
+  const isOrdered = headingPositions.every((pos, index) => index === 0 || pos > headingPositions[index - 1]);
+  if (!isOrdered) return fallback;
+
+  const confidenceMatch = normalized.match(/^### Confidence\s*$[\r\n]+(high|medium|low)\s*$/im);
+  if (!confidenceMatch) return fallback;
+
+  const hasNumberedSteps = /^\d+\.\s+/m.test(normalized);
+  const hasRoleBullet = /^### Who can do this\s*$[\r\n]+-\s+/im.test(normalized);
+  if (!hasNumberedSteps || !hasRoleBullet) return fallback;
+
+  return normalized;
+}
+
 function buildDeterministicReply(input: GenerateHelpReplyInput) {
   const top = input.retrievedContext[0];
   if (!top) {
+    const structured = formatStructuredAnswer({
+      shortAnswer:
+        "I could not find enough help context for that. Please rephrase with the exact task or page name.",
+      steps: ["Mention the module name (for example, internships, reports, or evaluation summary)."],
+      roleScope: "ALL roles (generic guidance)",
+      confidence: "low",
+    });
     return {
-      answer:
-        "I could not find enough help context for that. Please try rephrasing your question with the exact task or page.",
+      answer: structured,
       confidence: "low" as const,
     };
   }
 
-  const steps = top.steps.map((step, i) => `${i + 1}. ${step}`).join("\n");
-  const blockers = top.blockers.map((blocker) => `- ${blocker}`).join("\n");
-  const answer = `Here is the best guidance for your request (${top.title}):\n\n${steps}\n\nCommon blockers:\n${blockers}`;
-  const confidence = top.score >= 7 ? ("high" as const) : ("medium" as const);
+  const topContexts = input.retrievedContext.slice(0, 3);
+  const mergedSteps = topContexts.flatMap((item) => item.steps).filter(Boolean).slice(0, 3);
+  const coveredModules = [...new Set(topContexts.map((item) => item.title))].slice(0, 2);
+  const calibratedConfidence = top.score > 1 ? (top.score >= 9 ? "high" : "medium") : top.score >= 0.72 ? "high" : "medium";
+
+  const answer = formatStructuredAnswer({
+    shortAnswer: `${top.content} (Primary source: ${top.title}${
+      coveredModules.length > 1 ? `; also used: ${coveredModules.slice(1).join(", ")}` : ""
+    })`,
+    steps: mergedSteps,
+    roleScope: roleScopeFromContext(input.retrievedContext),
+    confidence: calibratedConfidence,
+  });
+  const confidence = calibratedConfidence;
   return { answer, confidence };
 }
 
 export async function generateHelpReply(input: GenerateHelpReplyInput) {
+  if (isSmallTalkMessage(input.message)) {
+    return {
+      answer: "Hello! How can I help you with the internship portal today?",
+      confidence: "high" as const,
+    };
+  }
+
   const client = getGroqClient();
   if (!client) {
     return buildDeterministicReply(input);
@@ -79,11 +185,26 @@ ${input.message}
 Allowed context:
 ${contextBlock}
 
-Output format:
-- Short answer (1-2 lines)
-- Steps (numbered)
-- Common blockers (bullets)
-- Confidence: high|medium|low`,
+Return output in EXACT markdown headings and order:
+### Short answer
+<1-2 lines>
+
+### What to do
+1. <step>
+2. <step>
+3. <step max>
+
+### Who can do this
+- <role scope from context only>
+
+### Confidence
+high|medium|low
+
+Rules:
+- Use only provided context.
+- Do not invent endpoints, permissions, or routes.
+- Max 3 steps.
+- Keep total response concise and scannable.`,
         },
       ],
     });
@@ -98,7 +219,17 @@ Output format:
       ? "low"
       : "medium";
 
-    return { answer: content, confidence: confidence as "high" | "medium" | "low" };
+    const fallbackStructured = formatStructuredAnswer({
+      shortAnswer: input.retrievedContext[0]?.content || "Follow role-specific dashboard guidance for this task.",
+      steps: input.retrievedContext[0]?.steps || [],
+      roleScope: roleScopeFromContext(input.retrievedContext),
+      confidence: confidence as "high" | "medium" | "low",
+    });
+
+    return {
+      answer: enforceStructuredFormat(content, fallbackStructured),
+      confidence: confidence as "high" | "medium" | "low",
+    };
   } catch {
     return buildDeterministicReply(input);
   }

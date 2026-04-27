@@ -77,7 +77,7 @@ export default function HelpChatWidget() {
   return (
     <div className="fixed bottom-5 right-5 z-50">
       {isOpen ? (
-        <div className="w-[340px] rounded-xl border border-slate-300 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900">
+        <div className="w-[min(92vw,440px)] rounded-xl border border-slate-300 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900">
           <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2 dark:border-slate-700">
             <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">Portal Help</p>
             <button
@@ -90,14 +90,14 @@ export default function HelpChatWidget() {
             </button>
           </div>
 
-          <div className="max-h-80 space-y-2 overflow-y-auto p-3">
+          <div className="h-[420px] max-h-[60vh] space-y-2 overflow-y-auto p-3">
             {messages.map((msg) => (
               <div
                 key={msg.id}
                 className={`rounded-lg px-3 py-2 text-sm ${
                   msg.role === "user"
-                    ? "ml-8 bg-indigo-600 text-white"
-                    : "mr-8 bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-100"
+                    ? "ml-8 whitespace-pre-wrap bg-indigo-600 text-white"
+                    : "mr-8 whitespace-pre-wrap bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-100"
                 }`}
               >
                 {msg.text}

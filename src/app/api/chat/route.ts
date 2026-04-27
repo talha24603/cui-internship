@@ -37,11 +37,11 @@ export async function POST(req: NextRequest) {
         : crypto.randomUUID();
 
     const recentSummary = summarizeRecentContext(conversationId);
-    const retrieved = retrieveHelpContext({
+    const retrieved = await retrieveHelpContext({
       query: message,
       role,
       currentRoute: typeof currentRoute === "string" ? currentRoute : undefined,
-      topK: 4,
+      topK: 5,
     });
 
     const generated = await generateHelpReply({
