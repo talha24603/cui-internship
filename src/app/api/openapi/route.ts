@@ -171,7 +171,6 @@ export async function GET() {
           tags: ["Authentication"],
           summary: "Logout from all devices",
           description: "Revokes all refresh tokens for the authenticated user",
-          security: [{ bearerAuth: [] }],
           responses: {
             "200": {
               description: "Logged out from all devices successfully",
@@ -197,7 +196,6 @@ export async function GET() {
           tags: ["Authentication"],
           summary: "Get active sessions",
           description: "Retrieve all active sessions for the authenticated user",
-          security: [{ bearerAuth: [] }],
           responses: {
             "200": {
               description: "Active sessions retrieved successfully",
@@ -6625,6 +6623,92 @@ export async function GET() {
           }
         }
       },
+      "/api/chat": {
+        post: {
+          tags: ["Chatbot"],
+          summary: "Portal help chatbot",
+          description:
+            "Returns role-aware guidance for portal usage. If Authorization Bearer token is provided, the chatbot personalizes retrieval by user role. Without token, it falls back to generic help.",
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["message"],
+                  properties: {
+                    message: {
+                      type: "string",
+                      description: "User's help question",
+                      example: "How do I submit my final internship report?",
+                    },
+                    currentRoute: {
+                      type: "string",
+                      description: "Optional current frontend route for route-aware retrieval boost",
+                      example: "/student/final-result",
+                    },
+                    conversationId: {
+                      type: "string",
+                      description: "Optional conversation ID for short-term memory across turns",
+                      example: "c8d3e790-12ab-4a2c-bf3e-a5c9d03a5610",
+                    },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "Chatbot response generated successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      conversationId: {
+                        type: "string",
+                        description: "Conversation identifier to continue context in next turns",
+                      },
+                      reply: {
+                        type: "string",
+                        description: "Generated chatbot reply",
+                      },
+                      confidence: {
+                        type: "string",
+                        enum: ["high", "medium", "low"],
+                      },
+                      role: {
+                        type: "string",
+                        description: "Resolved role from token, or ALL for anonymous access",
+                        example: "STUDENT",
+                      },
+                      userId: {
+                        type: "string",
+                        nullable: true,
+                        description: "Resolved user ID from token when available",
+                      },
+                      sources: {
+                        type: "array",
+                        description: "Retrieved help knowledge sources used for response generation",
+                        items: {
+                          type: "object",
+                          properties: {
+                            id: { type: "string" },
+                            title: { type: "string" },
+                            module: { type: "string" },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "400": { description: "Message is missing or invalid" },
+            "500": { description: "Internal server error" },
+          },
+        },
+      },
     },
     components: {
       securitySchemes: {
@@ -6700,6 +6784,10 @@ export async function GET() {
       {
         name: "Dropdown",
         description: "Dropdown data endpoints for select fields",
+      },
+      {
+        name: "Chatbot",
+        description: "AI-powered help assistant endpoints for portal guidance",
       },
     ],
   } as const;

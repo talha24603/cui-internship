@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import FacultyShell from "@/components/faculty/FacultyShell";
 import { Card, StatusBadge } from "@/components/student/StudentUi";
 import { Select } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 import { authJson } from "@/utils/authClient";
 
 type InternshipRecord = {
@@ -71,7 +73,12 @@ export default function FacultyWeeklyLogsPage() {
             <div className="space-y-2">
               {group.weeklyLogs.map((log) => (
                 <div key={log.id} className="rounded-lg border border-slate-200 p-3 dark:border-slate-700">
-                  <p className="text-sm font-semibold">Week {log.weekNo}</p>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-semibold">Week {log.weekNo}</p>
+                    <Button asChild size="sm" variant="outline">
+                      <Link href={`/faculty/internships/${group.internship.id}/weekly-logs/${log.id}`}>Open full page</Link>
+                    </Button>
+                  </div>
                   <p className="text-xs text-slate-600 dark:text-slate-400">Activities: {log.activitiesDone}</p>
                   <p className="text-xs text-slate-600 dark:text-slate-400">Skills: {log.skillsLearned}</p>
                   <p className="text-xs text-slate-600 dark:text-slate-400">Challenges: {log.challenges}</p>

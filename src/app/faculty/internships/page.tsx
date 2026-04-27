@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import FacultyShell from "@/components/faculty/FacultyShell";
 import { Card, StatusBadge } from "@/components/student/StudentUi";
 import { Select } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 import { authJson } from "@/utils/authClient";
 import { PageEmpty, PageError } from "@/components/shared/page-state";
 
@@ -66,6 +68,11 @@ export default function FacultyInternshipsPage() {
                 {item.startDate ? new Date(item.startDate).toLocaleDateString() : "N/A"} -{" "}
                 {item.endDate ? new Date(item.endDate).toLocaleDateString() : "N/A"}
               </p>
+              <div className="mt-3">
+                <Button asChild size="sm" variant="outline">
+                  <Link href={`/faculty/internships/${item.id}`}>Open details</Link>
+                </Button>
+              </div>
             </Card>
           ))}
           {items.length === 0 ? <PageEmpty message="No internships found." /> : null}

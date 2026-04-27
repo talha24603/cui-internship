@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import AdminShell from "@/components/admin/AdminShell";
 import { Card, StatusBadge } from "@/components/student/StudentUi";
 import { authJson } from "@/utils/authClient";
 import { PageEmpty, PageError } from "@/components/shared/page-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 
 type Internship = {
   id: string;
@@ -48,6 +50,11 @@ export default function AdminInternshipsPage() {
               Faculty: {item.faculty?.name ?? "N/A"} | Site: {item.site?.name ?? "N/A"}
             </p>
             <p className="text-xs text-slate-600 dark:text-slate-400">Company: {item.site?.company?.name ?? "N/A"}</p>
+            <div className="mt-3">
+              <Button asChild size="sm" variant="outline">
+                <Link href={`/admin/internships/${item.id}`}>Open details</Link>
+              </Button>
+            </div>
           </Card>
         ))}
         {!loading && items.length === 0 ? <PageEmpty message="No internships found." /> : null}
