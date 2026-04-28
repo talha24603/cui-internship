@@ -25,6 +25,7 @@ const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434";
 const USE_PGVECTOR = (process.env.USE_PGVECTOR || "true").toLowerCase() !== "false";
 const PGVECTOR_AUTO_SYNC = (process.env.PGVECTOR_AUTO_SYNC || "true").toLowerCase() !== "false";
 const SEMANTIC_DEBUG = (process.env.SEMANTIC_DEBUG || "true").toLowerCase() !== "false";
+const SEMANTIC_DEBUG_VERBOSE = (process.env.SEMANTIC_DEBUG_VERBOSE || "false").toLowerCase() === "true";
 
 const KNOWLEDGE_CHUNKS = chunkHelpKnowledgeBase(HELP_KNOWLEDGE_BASE);
 const chunkEmbeddingCache = new Map<string, number[]>();
@@ -34,6 +35,15 @@ let pgvectorSyncPromise: Promise<void> | null = null;
 
 function debugLog(message: string, meta?: Record<string, unknown>) {
   if (!SEMANTIC_DEBUG) return;
+  if (meta) {
+    console.log(`[semantic] ${message}`, meta);
+    return;
+  }
+  console.log(`[semantic] ${message}`);
+}
+
+function debugLogVerbose(message: string, meta?: Record<string, unknown>) {
+  if (!SEMANTIC_DEBUG || !SEMANTIC_DEBUG_VERBOSE) return;
   if (meta) {
     console.log(`[semantic] ${message}`, meta);
     return;
@@ -183,7 +193,7 @@ async function getOpenRouterEmbedding(input: string, apiKey: string): Promise<nu
     const embedding = payload.data?.[0]?.embedding;
     if (!Array.isArray(embedding)) return null;
     if (!embedding.every((value) => typeof value === "number")) return null;
-    debugLog("OpenRouter embedding generated", { dimensions: embedding.length });
+    debugLogVerbose("OpenRouter embedding generated", { dimensions: embedding.length });
     return embedding as number[];
   } catch {
     debugLog("OpenRouter embedding request failed");
@@ -205,7 +215,7 @@ async function getOllamaEmbedding(input: string): Promise<number[] | null> {
     const payload = (await response.json()) as { embedding?: unknown };
     if (!Array.isArray(payload.embedding)) return null;
     if (!payload.embedding.every((value) => typeof value === "number")) return null;
-    debugLog("Ollama embedding generated", { dimensions: payload.embedding.length });
+    debugLogVerbose("Ollama embedding generated", { dimensions: payload.embedding.length });
     return payload.embedding as number[];
   } catch {
     debugLog("Ollama embedding request failed");
@@ -423,7 +433,7 @@ export async function retrieveSemanticHelpContext(
 
   let queryVector: number[] | null = null;
   try {
-    await ensureChunkEmbeddings(providerClient);
+    // Fast path: embed only the query first. Avoid warming all chunks on request path.
     queryVector = await embedSingleText(input.query, providerClient);
   } catch (error) {
     console.warn("Semantic embedding generation failed, falling back to lexical retrieval:", error);
@@ -432,6 +442,10 @@ export async function retrieveSemanticHelpContext(
 
   if (!queryVector) return [];
 
+  // Only warm chunk cache when we explicitly need to auto-sync vectors.
+  if (PGVECTOR_AUTO_SYNC && chunkEmbeddingCache.size === 0) {
+    await ensureChunkEmbeddings(providerClient);
+  }
   await ensurePgvectorSynced();
   const role = input.role.toUpperCase();
   const topK = Math.max(1, Math.min(input.topK ?? 4, 8));
@@ -444,6 +458,10 @@ export async function retrieveSemanticHelpContext(
     return fromPgvector;
   }
 
+  // Lazy fallback: warm chunk cache only if pgvector didn't return any hits.
+  if (chunkEmbeddingCache.size === 0) {
+    await ensureChunkEmbeddings(providerClient);
+  }
   const fromMemory = retrieveFromInMemoryChunks(queryVector, role, topK, input.currentRoute);
   if (fromMemory.length > 0) {
     debugLog("Semantic retrieval path: in-memory chunks", {
