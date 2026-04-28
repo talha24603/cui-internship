@@ -2,6 +2,11 @@ import Groq from "groq-sdk";
 import { HELP_KNOWLEDGE_BASE, type HelpKnowledgeItem, type HelpRole } from "@/utils/chat/helpKnowledge";
 import type { RetrievedHelpItem } from "@/utils/chat/retrieval";
 import prisma from "@/utils/prisma";
+import {
+  buildEmbeddingInputFromChunk,
+  chunkHelpKnowledgeBase,
+  type SemanticHelpChunk,
+} from "@/utils/chat/chunking";
 
 type SemanticRetrievalInput = {
   query: string;
@@ -19,10 +24,13 @@ const OLLAMA_EMBEDDING_MODEL = process.env.OLLAMA_EMBEDDING_MODEL || "nomic-embe
 const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434";
 const USE_PGVECTOR = (process.env.USE_PGVECTOR || "true").toLowerCase() !== "false";
 const PGVECTOR_AUTO_SYNC = (process.env.PGVECTOR_AUTO_SYNC || "true").toLowerCase() !== "false";
-const knowledgeEmbeddingCache = new Map<string, number[]>();
+const SEMANTIC_DEBUG = (process.env.SEMANTIC_DEBUG || "true").toLowerCase() !== "false";
+
+const KNOWLEDGE_CHUNKS = chunkHelpKnowledgeBase(HELP_KNOWLEDGE_BASE);
+const chunkEmbeddingCache = new Map<string, number[]>();
+const itemById = new Map(HELP_KNOWLEDGE_BASE.map((item) => [item.id, item]));
 let warmupPromise: Promise<void> | null = null;
 let pgvectorSyncPromise: Promise<void> | null = null;
-const SEMANTIC_DEBUG = (process.env.SEMANTIC_DEBUG || "true").toLowerCase() !== "false";
 
 function debugLog(message: string, meta?: Record<string, unknown>) {
   if (!SEMANTIC_DEBUG) return;
@@ -46,17 +54,9 @@ function getOpenRouterApiKey() {
 }
 
 type EmbeddingClient =
-  | {
-      provider: "groq";
-      client: Groq;
-    }
-  | {
-      provider: "openrouter";
-      apiKey: string;
-    }
-  | {
-      provider: "ollama";
-    };
+  | { provider: "groq"; client: Groq }
+  | { provider: "openrouter"; apiKey: string }
+  | { provider: "ollama" };
 
 function getEmbeddingClient(): EmbeddingClient | null {
   if (EMBEDDING_PROVIDER === "openrouter") {
@@ -71,7 +71,6 @@ function getEmbeddingClient(): EmbeddingClient | null {
     });
     return { provider: "openrouter", apiKey };
   }
-
   if (EMBEDDING_PROVIDER === "ollama") {
     debugLog("Using Ollama embedding provider", {
       model: OLLAMA_EMBEDDING_MODEL,
@@ -92,18 +91,6 @@ function roleMatches(itemRoles: HelpRole[], role: string) {
   return itemRoles.includes("ALL") || itemRoles.includes(role as HelpRole);
 }
 
-function buildEmbeddingText(item: HelpKnowledgeItem) {
-  return [
-    item.title,
-    `Module: ${item.module}`,
-    `Roles: ${item.roleScope.join(", ")}`,
-    `Keywords: ${item.keywords.join(", ")}`,
-    `Content: ${item.content}`,
-    `Steps: ${item.steps.join(" ")}`,
-    `Blockers: ${item.blockers.join(" ")}`,
-  ].join("\n");
-}
-
 function dotProduct(a: number[], b: number[]) {
   let sum = 0;
   for (let i = 0; i < a.length; i += 1) {
@@ -114,9 +101,7 @@ function dotProduct(a: number[], b: number[]) {
 
 function magnitude(v: number[]) {
   let sum = 0;
-  for (const value of v) {
-    sum += value * value;
-  }
+  for (const value of v) sum += value * value;
   return Math.sqrt(sum);
 }
 
@@ -131,15 +116,24 @@ function routeBoost(module: string, currentRoute?: string) {
   return currentRoute.toLowerCase().includes(module.toLowerCase()) ? 0.08 : 0;
 }
 
+function normalizeEmbedding(value: string | number[] | undefined): number[] | null {
+  if (!value) return null;
+  if (Array.isArray(value)) return value;
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (Array.isArray(parsed) && parsed.every((n) => typeof n === "number")) return parsed;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 function escapeSqlLiteral(value: string) {
   return value.replace(/'/g, "''");
 }
 
 function toVectorLiteral(vector: number[]) {
-  const values = vector
-    .map((value) => (Number.isFinite(value) ? value : 0))
-    .join(",");
-  return `[${values}]`;
+  return `[${vector.map((n) => (Number.isFinite(n) ? n : 0)).join(",")}]`;
 }
 
 function toSqlTextArray(values: string[]) {
@@ -147,48 +141,25 @@ function toSqlTextArray(values: string[]) {
   return `ARRAY[${escaped}]::text[]`;
 }
 
-function normalizeEmbedding(value: string | number[] | undefined): number[] | null {
-  if (!value) return null;
-  if (Array.isArray(value)) return value;
-  try {
-    const parsed = JSON.parse(value) as unknown;
-    if (Array.isArray(parsed) && parsed.every((n) => typeof n === "number")) {
-      return parsed;
-    }
-    return null;
-  } catch {
-    return null;
-  }
+function inferModuleFromRoute(currentRoute?: string) {
+  if (!currentRoute) return null;
+  const route = currentRoute.toLowerCase();
+  const tokens = route.split(/[^a-z0-9]+/g).filter(Boolean);
+  if (tokens.length === 0) return null;
+  const knownModules = new Set(KNOWLEDGE_CHUNKS.map((chunk) => chunk.module.toLowerCase()));
+  const found = tokens.find((token) => knownModules.has(token));
+  return found || null;
 }
 
-async function warmKnowledgeEmbeddings(client: Groq) {
-  const missing = HELP_KNOWLEDGE_BASE.filter((item) => !knowledgeEmbeddingCache.has(item.id));
-  if (missing.length === 0) return;
-  debugLog("Warming Groq embeddings for knowledge base", { missingCount: missing.length });
-
-  const inputs = missing.map((item) => buildEmbeddingText(item));
-  const response = await client.embeddings.create({
-    model: GROQ_EMBEDDING_MODEL,
-    input: inputs,
-  });
-
-  response.data.forEach((entry, index) => {
-    const item = missing[index];
-    const embedding = normalizeEmbedding(entry.embedding);
-    if (item && embedding) {
-      knowledgeEmbeddingCache.set(item.id, embedding);
-    }
-  });
-  debugLog("Groq embedding warmup complete", { cacheSize: knowledgeEmbeddingCache.size });
-}
-
-async function ensureKnowledgeEmbeddings(client: Groq) {
-  if (!warmupPromise) {
-    warmupPromise = warmKnowledgeEmbeddings(client).finally(() => {
-      warmupPromise = null;
-    });
-  }
-  await warmupPromise;
+function toRetrievedItemsFromChunkScores(scoresByItem: Map<string, number>) {
+  return [...scoresByItem.entries()]
+    .map(([itemId, score]) => {
+      const item = itemById.get(itemId);
+      if (!item) return null;
+      return { ...item, score };
+    })
+    .filter((item): item is RetrievedHelpItem => Boolean(item))
+    .sort((a, b) => b.score - a.score);
 }
 
 async function getOpenRouterEmbedding(input: string, apiKey: string): Promise<number[] | null> {
@@ -208,9 +179,7 @@ async function getOpenRouterEmbedding(input: string, apiKey: string): Promise<nu
       debugLog("OpenRouter embedding request failed", { status: response.status });
       return null;
     }
-    const payload = (await response.json()) as {
-      data?: Array<{ embedding?: unknown }>;
-    };
+    const payload = (await response.json()) as { data?: Array<{ embedding?: unknown }> };
     const embedding = payload.data?.[0]?.embedding;
     if (!Array.isArray(embedding)) return null;
     if (!embedding.every((value) => typeof value === "number")) return null;
@@ -220,31 +189,6 @@ async function getOpenRouterEmbedding(input: string, apiKey: string): Promise<nu
     debugLog("OpenRouter embedding request failed");
     return null;
   }
-}
-
-async function warmKnowledgeEmbeddingsWithOpenRouter(apiKey: string) {
-  const missing = HELP_KNOWLEDGE_BASE.filter((item) => !knowledgeEmbeddingCache.has(item.id));
-  if (missing.length > 0) {
-    debugLog("Warming OpenRouter embeddings for knowledge base", { missingCount: missing.length });
-  }
-  for (const item of missing) {
-    const embedding = await getOpenRouterEmbedding(buildEmbeddingText(item), apiKey);
-    if (embedding) {
-      knowledgeEmbeddingCache.set(item.id, embedding);
-    }
-  }
-  if (missing.length > 0) {
-    debugLog("OpenRouter embedding warmup complete", { cacheSize: knowledgeEmbeddingCache.size });
-  }
-}
-
-async function ensureKnowledgeEmbeddingsWithOpenRouter(apiKey: string) {
-  if (!warmupPromise) {
-    warmupPromise = warmKnowledgeEmbeddingsWithOpenRouter(apiKey).finally(() => {
-      warmupPromise = null;
-    });
-  }
-  await warmupPromise;
 }
 
 async function getOllamaEmbedding(input: string): Promise<number[] | null> {
@@ -269,72 +213,105 @@ async function getOllamaEmbedding(input: string): Promise<number[] | null> {
   }
 }
 
-async function warmKnowledgeEmbeddingsWithOllama() {
-  const missing = HELP_KNOWLEDGE_BASE.filter((item) => !knowledgeEmbeddingCache.has(item.id));
-  if (missing.length > 0) {
-    debugLog("Warming Ollama embeddings for knowledge base", { missingCount: missing.length });
+async function embedSingleText(input: string, providerClient: EmbeddingClient): Promise<number[] | null> {
+  if (providerClient.provider === "groq") {
+    const response = await providerClient.client.embeddings.create({
+      model: GROQ_EMBEDDING_MODEL,
+      input,
+    });
+    return normalizeEmbedding(response.data[0]?.embedding);
   }
-  for (const item of missing) {
-    const embedding = await getOllamaEmbedding(buildEmbeddingText(item));
-    if (embedding) {
-      knowledgeEmbeddingCache.set(item.id, embedding);
-    }
+  if (providerClient.provider === "openrouter") {
+    return getOpenRouterEmbedding(input, providerClient.apiKey);
   }
-  if (missing.length > 0) {
-    debugLog("Ollama embedding warmup complete", { cacheSize: knowledgeEmbeddingCache.size });
-  }
+  return getOllamaEmbedding(input);
 }
 
-async function ensureKnowledgeEmbeddingsWithOllama() {
+async function warmChunkEmbeddings(providerClient: EmbeddingClient) {
+  const missing = KNOWLEDGE_CHUNKS.filter((chunk) => !chunkEmbeddingCache.has(chunk.id));
+  if (missing.length === 0) return;
+  debugLog("Warming semantic chunk embeddings", { missingCount: missing.length, provider: providerClient.provider });
+
+  if (providerClient.provider === "groq") {
+    const response = await providerClient.client.embeddings.create({
+      model: GROQ_EMBEDDING_MODEL,
+      input: missing.map((chunk) => buildEmbeddingInputFromChunk(chunk)),
+    });
+    response.data.forEach((entry, index) => {
+      const chunk = missing[index];
+      const embedding = normalizeEmbedding(entry.embedding);
+      if (chunk && embedding) chunkEmbeddingCache.set(chunk.id, embedding);
+    });
+  } else {
+    for (const chunk of missing) {
+      const embedding = await embedSingleText(buildEmbeddingInputFromChunk(chunk), providerClient);
+      if (embedding) chunkEmbeddingCache.set(chunk.id, embedding);
+    }
+  }
+  debugLog("Semantic chunk warmup complete", { cacheSize: chunkEmbeddingCache.size });
+}
+
+async function ensureChunkEmbeddings(providerClient: EmbeddingClient) {
   if (!warmupPromise) {
-    warmupPromise = warmKnowledgeEmbeddingsWithOllama().finally(() => {
+    warmupPromise = warmChunkEmbeddings(providerClient).finally(() => {
       warmupPromise = null;
     });
   }
   await warmupPromise;
 }
 
+async function ensurePgvectorSchema() {
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE help_chunks
+    ADD COLUMN IF NOT EXISTS item_id text,
+    ADD COLUMN IF NOT EXISTS chunk_title text,
+    ADD COLUMN IF NOT EXISTS keywords text[]
+  `);
+  await prisma.$executeRawUnsafe(`
+    UPDATE help_chunks
+    SET item_id = COALESCE(item_id, doc_id),
+        keywords = COALESCE(keywords, ARRAY[]::text[])
+  `);
+  await prisma.$executeRawUnsafe(`
+    CREATE INDEX IF NOT EXISTS help_chunks_item_chunk_idx
+    ON help_chunks (item_id, chunk_index)
+  `);
+}
+
 async function syncKnowledgeIntoPgvector() {
-  if (!USE_PGVECTOR || !PGVECTOR_AUTO_SYNC || knowledgeEmbeddingCache.size === 0) return;
+  if (!USE_PGVECTOR || !PGVECTOR_AUTO_SYNC || chunkEmbeddingCache.size === 0) return;
   try {
-    debugLog("Attempting pgvector sync", {
-      autoSync: PGVECTOR_AUTO_SYNC,
-      cacheSize: knowledgeEmbeddingCache.size,
-    });
+    await ensurePgvectorSchema();
     const tableCheck = await prisma.$queryRawUnsafe<Array<{ exists: boolean }>>(
       "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'help_chunks') AS exists",
     );
-    if (!tableCheck[0]?.exists) {
-      debugLog("pgvector sync skipped: help_chunks table not found");
-      return;
-    }
+    if (!tableCheck[0]?.exists) return;
 
-    const existingRows = await prisma.$queryRawUnsafe<Array<{ docId: string }>>(
-      'SELECT doc_id AS "docId" FROM help_chunks',
+    const existingRows = await prisma.$queryRawUnsafe<Array<{ chunkId: string }>>(
+      'SELECT id AS "chunkId" FROM help_chunks',
     );
-    const existingDocIds = new Set(existingRows.map((row) => row.docId));
-    const missing = HELP_KNOWLEDGE_BASE.filter((item) => !existingDocIds.has(item.id));
-    if (missing.length === 0) {
-      debugLog("pgvector sync skipped: no missing docs");
-      return;
-    }
+    const existing = new Set(existingRows.map((row) => row.chunkId));
+    const missingChunks = KNOWLEDGE_CHUNKS.filter((chunk) => !existing.has(chunk.id));
+    if (missingChunks.length === 0) return;
 
-    for (const item of missing) {
-      const embedding = knowledgeEmbeddingCache.get(item.id);
-      if (!embedding) continue;
-
-      const rolesSql = toSqlTextArray(item.roleScope);
-      const contentText = buildEmbeddingText(item);
+    for (const chunk of missingChunks) {
+      const parent = itemById.get(chunk.itemId);
+      const embedding = chunkEmbeddingCache.get(chunk.id);
+      if (!parent || !embedding) continue;
+      const rolesSql = toSqlTextArray(chunk.roleScope);
+      const keywordsSql = toSqlTextArray(chunk.keywords);
       const vectorLiteral = toVectorLiteral(embedding);
-      const docId = escapeSqlLiteral(item.id);
-      const title = escapeSqlLiteral(item.title);
-      const module = escapeSqlLiteral(item.module);
-      const content = escapeSqlLiteral(item.content);
-      const chunkText = escapeSqlLiteral(contentText);
+      const safeDocId = escapeSqlLiteral(parent.id);
+      const safeChunkId = escapeSqlLiteral(chunk.id);
+      const safeTitle = escapeSqlLiteral(parent.title);
+      const safeModule = escapeSqlLiteral(parent.module);
+      const safeContent = escapeSqlLiteral(parent.content);
+      const safeChunkText = escapeSqlLiteral(chunk.content);
+      const safeChunkTitle = chunk.chunkTitle ? `'${escapeSqlLiteral(chunk.chunkTitle)}'` : "NULL";
 
       await prisma.$executeRawUnsafe(`
         INSERT INTO help_docs (id, title, module, role_scope, content)
-        VALUES ('${docId}', '${title}', '${module}', ${rolesSql}, '${content}')
+        VALUES ('${safeDocId}', '${safeTitle}', '${safeModule}', ${rolesSql}, '${safeContent}')
         ON CONFLICT (id) DO UPDATE
           SET title = EXCLUDED.title,
               module = EXCLUDED.module,
@@ -343,16 +320,18 @@ async function syncKnowledgeIntoPgvector() {
       `);
 
       await prisma.$executeRawUnsafe(`
-        INSERT INTO help_chunks (id, doc_id, chunk_index, chunk_text, role_scope, module, embedding)
-        VALUES ('${docId}-0', '${docId}', 0, '${chunkText}', ${rolesSql}, '${module}', '${vectorLiteral}'::vector)
-        ON CONFLICT (doc_id, chunk_index) DO UPDATE
+        INSERT INTO help_chunks (id, doc_id, item_id, chunk_index, chunk_title, chunk_text, role_scope, module, keywords, embedding)
+        VALUES ('${safeChunkId}', '${safeDocId}', '${safeDocId}', ${chunk.chunkIndex}, ${safeChunkTitle}, '${safeChunkText}', ${rolesSql}, '${safeModule}', ${keywordsSql}, '${vectorLiteral}'::vector)
+        ON CONFLICT (id) DO UPDATE
           SET chunk_text = EXCLUDED.chunk_text,
+              chunk_title = EXCLUDED.chunk_title,
               role_scope = EXCLUDED.role_scope,
               module = EXCLUDED.module,
+              keywords = EXCLUDED.keywords,
               embedding = EXCLUDED.embedding
       `);
     }
-    debugLog("pgvector sync complete", { insertedOrUpdated: missing.length });
+    debugLog("pgvector chunk sync complete", { insertedOrUpdated: missingChunks.length });
   } catch (error) {
     console.warn("pgvector sync failed; continuing with in-memory semantic retrieval:", error);
   }
@@ -374,51 +353,60 @@ async function retrieveFromPgvector(
   topK: number,
   currentRoute?: string,
 ): Promise<RetrievedHelpItem[]> {
-  if (!USE_PGVECTOR) {
-    debugLog("pgvector retrieval disabled by USE_PGVECTOR=false");
-    return [];
-  }
+  if (!USE_PGVECTOR) return [];
   try {
     const vectorLiteral = toVectorLiteral(queryVector);
     const safeRole = /^[A-Z_]+$/.test(role) ? role : "ALL";
-    const rows = await prisma.$queryRawUnsafe<Array<{ docId: string; similarity: number }>>(`
-      SELECT c.doc_id AS "docId",
-             (1 - (c.embedding <=> '${vectorLiteral}'::vector))::float8 AS similarity
+    const moduleHint = inferModuleFromRoute(currentRoute);
+    const moduleFilter = moduleHint ? `AND c.module = '${escapeSqlLiteral(moduleHint)}'` : "";
+
+    const rows = await prisma.$queryRawUnsafe<Array<{ itemId: string; similarity: number; module: string }>>(`
+      SELECT COALESCE(c.item_id, c.doc_id) AS "itemId",
+             c.module AS "module",
+             MAX((1 - (c.embedding <=> '${vectorLiteral}'::vector))::float8) AS similarity
       FROM help_chunks c
       WHERE c.embedding IS NOT NULL
         AND (c.role_scope @> ARRAY['${safeRole}']::text[] OR c.role_scope @> ARRAY['ALL']::text[])
-      ORDER BY c.embedding <=> '${vectorLiteral}'::vector
-      LIMIT ${Math.max(topK, 1)}
+        ${moduleFilter}
+      GROUP BY COALESCE(c.item_id, c.doc_id), c.module
+      ORDER BY MAX(c.embedding <=> '${vectorLiteral}'::vector) ASC
+      LIMIT ${Math.max(topK * 2, 4)}
     `);
 
-    if (rows.length === 0) {
-      debugLog("pgvector retrieval returned no rows", { role: safeRole, topK });
-      return [];
+    if (rows.length === 0) return [];
+    const scoresByItem = new Map<string, number>();
+    for (const row of rows) {
+      const base = Math.max(0, Number(row.similarity));
+      const boosted = Math.max(0, base + routeBoost(row.module, currentRoute));
+      const prev = scoresByItem.get(row.itemId);
+      if (prev === undefined || boosted > prev) scoresByItem.set(row.itemId, boosted);
     }
-    const byId = new Map(HELP_KNOWLEDGE_BASE.map((item) => [item.id, item]));
-    const ranked = rows
-      .map((row) => {
-        const source = byId.get(row.docId);
-        if (!source) return null;
-        return {
-          ...source,
-          score: Math.max(0, Number(row.similarity) + routeBoost(source.module, currentRoute)),
-        };
-      })
-      .filter((item): item is RetrievedHelpItem => Boolean(item))
-      .sort((a, b) => b.score - a.score)
-      .slice(0, topK);
-    debugLog("pgvector retrieval success", {
-      role: safeRole,
-      topK,
-      returned: ranked.length,
-      topIds: ranked.slice(0, 3).map((r) => r.id),
-    });
-    return ranked;
+    return toRetrievedItemsFromChunkScores(scoresByItem).slice(0, topK);
   } catch (error) {
     console.warn("pgvector retrieval failed; using in-memory semantic retrieval:", error);
     return [];
   }
+}
+
+function retrieveFromInMemoryChunks(
+  queryVector: number[],
+  role: string,
+  topK: number,
+  currentRoute?: string,
+) {
+  const scoresByItem = new Map<string, number>();
+  for (const chunk of KNOWLEDGE_CHUNKS) {
+    if (!roleMatches(chunk.roleScope, role)) continue;
+    const chunkVector = chunkEmbeddingCache.get(chunk.id);
+    if (!chunkVector) continue;
+    const semanticScore = cosineSimilarity(queryVector, chunkVector);
+    const score = Math.max(0, semanticScore + routeBoost(chunk.module, currentRoute));
+    const previous = scoresByItem.get(chunk.itemId);
+    if (previous === undefined || score > previous) {
+      scoresByItem.set(chunk.itemId, score);
+    }
+  }
+  return toRetrievedItemsFromChunkScores(scoresByItem).slice(0, topK);
 }
 
 export async function retrieveSemanticHelpContext(
@@ -429,85 +417,39 @@ export async function retrieveSemanticHelpContext(
     topK: input.topK ?? 4,
     route: input.currentRoute || "unknown",
   });
-  const embeddingClient = getEmbeddingClient();
-  if (!embeddingClient) return [];
-  const { provider } = embeddingClient;
+
+  const providerClient = getEmbeddingClient();
+  if (!providerClient) return [];
 
   let queryVector: number[] | null = null;
-  if (provider === "groq") {
-    const { client } = embeddingClient;
-    try {
-      await ensureKnowledgeEmbeddings(client);
-      const queryEmbedding = await client.embeddings.create({
-        model: GROQ_EMBEDDING_MODEL,
-        input: input.query,
-      });
-      queryVector = normalizeEmbedding(queryEmbedding.data[0]?.embedding);
-      debugLog("Groq query embedding ready", { dimensions: queryVector?.length ?? 0 });
-    } catch (error) {
-      console.warn("Groq semantic retrieval failed, falling back to lexical retrieval:", error);
-      return [];
-    }
-  } else if (provider === "openrouter") {
-    const { apiKey } = embeddingClient;
-    try {
-      await ensureKnowledgeEmbeddingsWithOpenRouter(apiKey);
-      queryVector = await getOpenRouterEmbedding(input.query, apiKey);
-      debugLog("OpenRouter query embedding ready", { dimensions: queryVector?.length ?? 0 });
-    } catch (error) {
-      console.warn("OpenRouter semantic retrieval failed, falling back to lexical retrieval:", error);
-      return [];
-    }
-  } else {
-    try {
-      await ensureKnowledgeEmbeddingsWithOllama();
-      queryVector = await getOllamaEmbedding(input.query);
-      debugLog("Ollama query embedding ready", { dimensions: queryVector?.length ?? 0 });
-    } catch (error) {
-      console.warn("Ollama semantic retrieval failed, falling back to lexical retrieval:", error);
-      return [];
-    }
+  try {
+    await ensureChunkEmbeddings(providerClient);
+    queryVector = await embedSingleText(input.query, providerClient);
+  } catch (error) {
+    console.warn("Semantic embedding generation failed, falling back to lexical retrieval:", error);
+    return [];
   }
 
   if (!queryVector) return [];
-  await ensurePgvectorSynced();
 
+  await ensurePgvectorSynced();
   const role = input.role.toUpperCase();
   const topK = Math.max(1, Math.min(input.topK ?? 4, 8));
   const fromPgvector = await retrieveFromPgvector(queryVector, role, topK, input.currentRoute);
   if (fromPgvector.length > 0) {
-    debugLog("Semantic retrieval path: pgvector");
+    debugLog("Semantic retrieval path: pgvector", {
+      returned: fromPgvector.length,
+      topIds: fromPgvector.slice(0, 3).map((item) => item.id),
+    });
     return fromPgvector;
   }
 
-  // Fallback semantic path: in-memory vectors (useful for local/dev even if DB is unavailable).
-  if (knowledgeEmbeddingCache.size === 0) {
-    debugLog("Semantic retrieval fallback failed: in-memory cache empty");
-    return [];
-  }
-
-  try {
-    const inMemory = HELP_KNOWLEDGE_BASE.filter((item) => roleMatches(item.roleScope, role))
-      .map((item) => {
-        const itemVector = knowledgeEmbeddingCache.get(item.id);
-        if (!itemVector) return null;
-        const semanticScore = cosineSimilarity(queryVector, itemVector);
-        const score = Math.max(0, semanticScore + routeBoost(item.module, input.currentRoute));
-        return {
-          ...item,
-          score,
-        };
-      })
-      .filter((item): item is RetrievedHelpItem => Boolean(item))
-      .sort((a, b) => b.score - a.score)
-      .slice(0, topK);
-    debugLog("Semantic retrieval path: in-memory cache", {
-      returned: inMemory.length,
-      topIds: inMemory.slice(0, 3).map((r) => r.id),
+  const fromMemory = retrieveFromInMemoryChunks(queryVector, role, topK, input.currentRoute);
+  if (fromMemory.length > 0) {
+    debugLog("Semantic retrieval path: in-memory chunks", {
+      returned: fromMemory.length,
+      topIds: fromMemory.slice(0, 3).map((item) => item.id),
     });
-    return inMemory;
-  } catch (error) {
-    console.warn("Semantic retrieval failed, falling back to lexical retrieval:", error);
-    return [];
   }
+  return fromMemory;
 }

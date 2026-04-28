@@ -1,11 +1,12 @@
 import Groq from "groq-sdk";
-import type { RetrievedHelpItem } from "@/utils/chat/retrieval";
+import type { RetrievalDecision, RetrievedHelpItem } from "@/utils/chat/retrieval";
 
 type GenerateHelpReplyInput = {
   message: string;
   role: string;
   currentRoute?: string;
   retrievedContext: RetrievedHelpItem[];
+  retrievalDecision?: RetrievalDecision;
   conversationSummary?: string;
 };
 
@@ -17,6 +18,7 @@ function getGroqClient() {
 
 function buildContextBlock(context: RetrievedHelpItem[]) {
   return context
+    .slice(0, 2)
     .map((item, index) => {
       return [
         `Source ${index + 1}: ${item.title}`,
@@ -24,7 +26,6 @@ function buildContextBlock(context: RetrievedHelpItem[]) {
         `Scope: ${item.roleScope.join(", ")}`,
         `Content: ${item.content}`,
         `Steps: ${item.steps.join(" | ")}`,
-        `Blockers: ${item.blockers.join(" | ")}`,
       ].join("\n");
     })
     .join("\n\n");
@@ -63,6 +64,25 @@ function isSmallTalkMessage(message: string) {
     return true;
   }
   return false;
+}
+
+function isAssistantCapabilityQuestion(message: string) {
+  const normalized = message.trim().toLowerCase();
+  if (!normalized) return false;
+
+  const compact = normalized.replace(/[^\w\s]/g, " ").replace(/\s+/g, " ").trim();
+  const patterns = [
+    /\bwhat can you do\b/,
+    /\bwhat do you do\b/,
+    /\bwhat you do\b/,
+    /\bwho are you\b/,
+    /\bhow can you help\b/,
+    /\bhelp me with\b/,
+    /\byour purpose\b/,
+    /\bwhat is your role\b/,
+  ];
+
+  return patterns.some((pattern) => pattern.test(compact));
 }
 
 function formatStructuredAnswer(params: {
@@ -146,12 +166,90 @@ function buildDeterministicReply(input: GenerateHelpReplyInput) {
   return { answer, confidence };
 }
 
+function buildClarificationReply(input: GenerateHelpReplyInput) {
+  const options = input.retrievedContext
+    .slice(0, 3)
+    .map((item) => item.title)
+    .filter(Boolean);
+
+  const uniqueOptions = [...new Set(options)];
+  const clarification =
+    uniqueOptions.length >= 2
+      ? `I’m not fully sure which module you mean. Did you mean ${uniqueOptions
+          .slice(0, -1)
+          .join(", ")}${uniqueOptions.length > 1 ? `, or ${uniqueOptions.at(-1)}` : ""}?`
+      : "I’m not fully sure which module you mean yet.";
+
+  return {
+    answer: [
+      "### Short answer",
+      clarification,
+      "",
+      "### What to do",
+      "1. Mention the exact module, page, or form name.",
+      "2. Include your role if the workflow is role-specific.",
+      "3. If possible, ask using the exact system term such as AppEx-A, AppEx-B, weekly logs, final report, or evaluation summary.",
+      "",
+      "### Who can do this",
+      "- ALL roles (generic guidance)",
+      "",
+      "### Confidence",
+      "low",
+    ].join("\n"),
+    confidence: "low" as const,
+  };
+}
+
+function shouldUseDeterministicReply(input: GenerateHelpReplyInput) {
+  const top = input.retrievedContext[0];
+  if (!top) return true;
+
+  const second = input.retrievedContext[1];
+  const shortMessage = input.message.trim().split(/\s+/).filter(Boolean).length <= 8;
+  const scoreGap = top.score - (second?.score ?? 0);
+
+  // Lexical fast-path scores are typically larger than semantic/hybrid scores.
+  const hasVeryStrongLexicalMatch = top.score > 1 && top.score >= 9 && scoreGap >= 2;
+  const hasStrongSemanticMatch = top.score <= 1 && top.score >= 0.84 && scoreGap >= 0.12;
+
+  return shortMessage && (hasVeryStrongLexicalMatch || hasStrongSemanticMatch);
+}
+
 export async function generateHelpReply(input: GenerateHelpReplyInput) {
   if (isSmallTalkMessage(input.message)) {
     return {
       answer: "Hello! How can I help you with the internship portal today?",
       confidence: "high" as const,
     };
+  }
+
+  if (isAssistantCapabilityQuestion(input.message)) {
+    return {
+      answer: [
+        "### Short answer",
+        "I guide users about how this internship portal works, including workflows, permissions, statuses, and common issues.",
+        "",
+        "### What to do",
+        "1. Ask about a module or process such as AppEx-A, AppEx-B, weekly logs, final report, evaluation, announcements, or company requests.",
+        "2. Mention your role or page if the workflow is role-specific.",
+        "3. If you get an unexpected error or status, ask with the exact message or module name.",
+        "",
+        "### Who can do this",
+        "- ALL roles (generic guidance)",
+        "",
+        "### Confidence",
+        "high",
+      ].join("\n"),
+      confidence: "high" as const,
+    };
+  }
+
+  if (input.retrievalDecision?.kind === "ambiguous") {
+    return buildClarificationReply(input);
+  }
+
+  if (shouldUseDeterministicReply(input)) {
+    return buildDeterministicReply(input);
   }
 
   const client = getGroqClient();

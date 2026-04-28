@@ -12,6 +12,19 @@ export type RetrievedHelpItem = HelpKnowledgeItem & {
   score: number;
 };
 
+export type RetrievalDecision =
+  | {
+      kind: "match";
+      items: RetrievedHelpItem[];
+    }
+  | {
+      kind: "ambiguous";
+      items: RetrievedHelpItem[];
+      normalizedQuery: string;
+      queryTokens: string[];
+      reason: "low_confidence" | "close_scores" | "anchor_mismatch";
+    };
+
 const STOP_WORDS = new Set([
   "the",
   "a",
@@ -98,6 +111,28 @@ function tokenize(value: string) {
     .map((token) => token.trim())
     .filter((token) => token.length > 1 && !STOP_WORDS.has(token));
 }
+
+const GENERIC_QUERY_TOKENS = new Set([
+  "status",
+  "approval",
+  "approve",
+  "approved",
+  "report",
+  "reports",
+  "form",
+  "process",
+  "workflow",
+  "details",
+  "system",
+  "portal",
+  "help",
+  "info",
+  "information",
+  "guide",
+  "verification",
+  "company",
+  "evaluation",
+]);
 
 function expandQueryTokens(queryTokens: string[]) {
   const expanded = new Set<string>(queryTokens);
@@ -208,17 +243,100 @@ function hasStrongLexicalConfidence(lexical: RetrievedHelpItem[]) {
   return topScore >= 9 && gap >= 2;
 }
 
-export async function retrieveHelpContext(input: RetrievalInput): Promise<RetrievedHelpItem[]> {
+function extractAnchorTokens(queryTokens: string[]) {
+  return queryTokens.filter((token) => !GENERIC_QUERY_TOKENS.has(token));
+}
+
+function hasAnchorMismatch(item: RetrievedHelpItem | undefined, anchorTokens: string[]) {
+  if (!item || anchorTokens.length === 0) return false;
+  const searchableTokens = tokenize(`${item.title} ${item.module} ${item.keywords.join(" ")} ${item.content}`);
+  return !anchorTokens.some(
+    (token) => searchableTokens.includes(token),
+  );
+}
+
+function isAmbiguousResult(
+  items: RetrievedHelpItem[],
+  queryTokens: string[],
+  normalizedQuery: string,
+): RetrievalDecision | null {
+  if (items.length === 0) {
+    return {
+      kind: "ambiguous",
+      items: [],
+      normalizedQuery,
+      queryTokens,
+      reason: "low_confidence",
+    };
+  }
+
+  const [top, second] = items;
+  const shortQuery = queryTokens.length <= 4;
+  const anchorTokens = extractAnchorTokens(queryTokens);
+  const scoreGap = (top?.score ?? 0) - (second?.score ?? 0);
+  const topScore = top?.score ?? 0;
+
+  if (shortQuery && hasAnchorMismatch(top, anchorTokens)) {
+    return {
+      kind: "ambiguous",
+      items,
+      normalizedQuery,
+      queryTokens,
+      reason: "anchor_mismatch",
+    };
+  }
+
+  const looksLexical = topScore > 1;
+  const hasLowConfidence = looksLexical ? topScore < 6 : topScore < 0.55;
+  const hasCloseScores = second
+    ? looksLexical
+      ? scoreGap < 2
+      : scoreGap < 0.08
+    : false;
+
+  if (shortQuery && hasLowConfidence) {
+    return {
+      kind: "ambiguous",
+      items,
+      normalizedQuery,
+      queryTokens,
+      reason: "low_confidence",
+    };
+  }
+
+  if (shortQuery && hasCloseScores) {
+    return {
+      kind: "ambiguous",
+      items,
+      normalizedQuery,
+      queryTokens,
+      reason: "close_scores",
+    };
+  }
+
+  return null;
+}
+
+export async function retrieveHelpContext(input: RetrievalInput): Promise<RetrievalDecision> {
   const topK = Math.max(1, Math.min(input.topK ?? 4, 8));
-  const lexical = retrieveLexicalHelpContext({ ...input, topK: Math.max(topK * 2, 6) });
+  const normalizedQuery = normalizeQuery(input.query);
+  const queryTokens = tokenize(normalizedQuery);
+  const lexical = retrieveLexicalHelpContext({ ...input, query: normalizedQuery, topK: Math.max(topK * 2, 6) });
   if (hasStrongLexicalConfidence(lexical)) {
     // Fast path: skip expensive semantic retrieval when lexical intent is already clear.
-    return lexical.slice(0, topK);
+    const matched = lexical.slice(0, topK);
+    return { kind: "match", items: matched };
   }
-  const semantic = await retrieveSemanticHelpContext({ ...input, topK: Math.max(topK * 2, 6) });
+  const semantic = await retrieveSemanticHelpContext({
+    ...input,
+    query: normalizedQuery,
+    topK: Math.max(topK * 2, 6),
+  });
 
   if (semantic.length === 0) {
-    return lexical.slice(0, topK);
+    const fallback = lexical.slice(0, topK);
+    const ambiguous = isAmbiguousResult(fallback, queryTokens, normalizedQuery);
+    return ambiguous ?? { kind: "match", items: fallback };
   }
 
   const lexicalNorm = normalizeScores(lexical);
@@ -243,6 +361,7 @@ export async function retrieveHelpContext(input: RetrievalInput): Promise<Retrie
     })
     .sort((a, b) => b.score - a.score)
     .slice(0, topK);
-
-  return hybrid.length > 0 ? hybrid : lexical.slice(0, topK);
+  const matched = hybrid.length > 0 ? hybrid : lexical.slice(0, topK);
+  const ambiguous = isAmbiguousResult(matched, queryTokens, normalizedQuery);
+  return ambiguous ?? { kind: "match", items: matched };
 }

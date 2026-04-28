@@ -87,6 +87,32 @@ export const HELP_KNOWLEDGE_BASE: HelpKnowledgeItem[] = [
     ],
   },
   {
+    id: "weekly-logs-lifecycle-and-status",
+    title: "How weekly logs work end-to-end",
+    roleScope: ["STUDENT", "FACULTY", "ADMIN"],
+    module: "weekly-logs-lifecycle",
+    keywords: [
+      "how weekly logs work",
+      "weekly log status",
+      "pending weeks",
+      "week number validation",
+      "approved internship weekly logs",
+      "weekly logs lifecycle",
+    ],
+    content:
+      "Weekly logs are tied to an approved or completed internship, validated against internship dates, and tracked with submitted and pending week status.",
+    steps: [
+      "Student opens weekly logs after internship start and submits one log per valid week with activities, skills learned, and challenges.",
+      "System validates internship approval, start/end dates, current timing, valid week range, and prevents duplicate logs for the same week.",
+      "Faculty/admin can review logs in week order while student can see submitted weeks, pending weeks, and current progress status.",
+    ],
+    blockers: [
+      "Students without an approved/completed internship cannot submit logs.",
+      "Internship dates must be set and internship must have started before log submission is allowed.",
+      "Invalid week number or duplicate week submission returns an error.",
+    ],
+  },
+  {
     id: "student-appex-a-flow",
     title: "Student AppEx-A submission flow",
     roleScope: ["STUDENT"],
@@ -190,6 +216,32 @@ export const HELP_KNOWLEDGE_BASE: HelpKnowledgeItem[] = [
     blockers: [
       "Result remains pending until evaluations are available and finalized.",
       "Authentication is required to access student final result APIs.",
+    ],
+  },
+  {
+    id: "final-report-submission-and-ai-review",
+    title: "How final report submission and AI review work",
+    roleScope: ["STUDENT", "FACULTY", "ADMIN"],
+    module: "final-report-lifecycle",
+    keywords: [
+      "how final report works",
+      "final report upload",
+      "pdf report submission",
+      "ai report review",
+      "cloudinary report",
+      "final report lifecycle",
+    ],
+    content:
+      "Final report flow uploads a student PDF report, stores or updates the latest final report, and can trigger AI review using extracted report text or provided summary.",
+    steps: [
+      "Student submits multipart form data with internshipId, PDF file, and optional summary from the final report module.",
+      "System validates student ownership, checks PDF format, uploads the file, and updates the latest final report record if one already exists.",
+      "After upload, text extraction and AI assessment can run to store suggested marks and summary for faculty/admin review support.",
+    ],
+    blockers: [
+      "Only students can submit final reports and site supervisors are blocked from report access.",
+      "Cloudinary configuration must exist and internshipId must belong to the logged-in student.",
+      "If PDF text extraction fails and no summary is provided, submission is rejected for AI processing readiness.",
     ],
   },
   {
