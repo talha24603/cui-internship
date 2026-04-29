@@ -132,8 +132,13 @@ export default function FacultyInternshipDetailPage() {
               <div className="space-y-2 text-sm">
                 <p>Submitted: {new Date(finalReport.submittedDate).toLocaleString()}</p>
                 <p>Summary: {finalReport.summary || "N/A"}</p>
-                <Button asChild size="sm">
-                  <a href={finalReport.fileUrl} target="_blank" rel="noreferrer">
+                <Button asChild variant="outline" size="sm">
+                  <a
+                    href={finalReport.fileUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-slate-700 dark:text-slate-200"
+                  >
                     Download Final Report
                   </a>
                 </Button>
