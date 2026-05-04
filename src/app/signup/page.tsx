@@ -11,6 +11,8 @@ type RegisterResponse = {
   user: { id: string; name: string; email: string };
 };
 
+const CUI_SAHIWAL_STUDENT_EMAIL_REGEX = /^[a-z]{2}\d{2}-[a-z]{3}-\d{3}@students\.cuisahiwal\.edu\.pk$/i;
+
 export default function SignupPage() {
   const router = useRouter();
   const [name, setName] = useState("");
@@ -27,11 +29,18 @@ export default function SignupPage() {
     setError("");
     setMessage("");
 
+    const normalizedEmail = email.trim();
+    if (!CUI_SAHIWAL_STUDENT_EMAIL_REGEX.test(normalizedEmail)) {
+      setError("Email must follow format AA00-BBB-XXX@students.cuisahiwal.edu.pk");
+      setLoading(false);
+      return;
+    }
+
     try {
       const result = await postJson<RegisterResponse>("/api/auth/register", {
         name,
         regNo,
-        email,
+        email: normalizedEmail,
         password,
       });
 
@@ -87,7 +96,7 @@ export default function SignupPage() {
           type="email"
           required
           autoComplete="email"
-          placeholder="fa21-bcs-123@cuiatd.edu.pk"
+          placeholder="AA00-BBB-XXX@students.cuisahiwal.edu.pk"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
