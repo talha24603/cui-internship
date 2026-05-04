@@ -12,6 +12,25 @@ type Assignment = {
   id: string;
   name: string;
   degreeProgram: string;
+  email?: string | null;
+  semester?: string | null;
+  contactNo?: string | null;
+  preferredField?: string | null;
+  agreementAccepted?: boolean | null;
+  companyName?: string | null;
+  internshipRole?: string | null;
+  facultySupervisorNameDesig?: string | null;
+  siteSupervisorNameDesig?: string | null;
+  durationWeeks?: number | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  adminApprovalStatus?: string | null;
+  facultyVerified?: boolean | null;
+  facultyVerifiedAt?: string | null;
+  facultyVerificationComments?: string | null;
+  studentVerified?: boolean | null;
+  studentVerifiedAt?: string | null;
+  studentVerificationComments?: string | null;
   calculatedStatus: string;
   student?: { name: string; regNo?: string | null; email: string } | null;
 };
@@ -74,7 +93,77 @@ export default function FacultyAppexBVerificationPage() {
               </h3>
               <StatusBadge status={item.calculatedStatus} />
             </div>
-            <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">{item.name} - {item.degreeProgram}</p>
+            <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
+              {item.name} - {item.degreeProgram}
+            </p>
+
+            {/* Show full AppEx B details even before verification */}
+            <div className="mt-3 grid gap-1 text-xs text-slate-700 dark:text-slate-300 sm:grid-cols-2">
+              <p>
+                <span className="font-semibold">Email:</span> {item.email ?? item.student?.email ?? "N/A"}
+              </p>
+              <p>
+                <span className="font-semibold">Semester:</span> {item.semester ?? "N/A"}
+              </p>
+              <p>
+                <span className="font-semibold">Contact No:</span> {item.contactNo ?? "N/A"}
+              </p>
+              <p>
+                <span className="font-semibold">Preferred Field:</span> {item.preferredField ?? "N/A"}
+              </p>
+              <p>
+                <span className="font-semibold">Agreement Accepted:</span>{" "}
+                {item.agreementAccepted == null ? "N/A" : item.agreementAccepted ? "Yes" : "No"}
+              </p>
+              <p>
+                <span className="font-semibold">Admin Status:</span> {item.adminApprovalStatus ?? "N/A"}
+              </p>
+              <p className="sm:col-span-2">
+                <span className="font-semibold">Company Name:</span> {item.companyName ?? "N/A"}
+              </p>
+              <p className="sm:col-span-2">
+                <span className="font-semibold">Internship Role:</span> {item.internshipRole ?? "N/A"}
+              </p>
+              <p>
+                <span className="font-semibold">Faculty Supervisor:</span>{" "}
+                {item.facultySupervisorNameDesig ?? "N/A"}
+              </p>
+              <p>
+                <span className="font-semibold">Site Supervisor:</span> {item.siteSupervisorNameDesig ?? "N/A"}
+              </p>
+              <p>
+                <span className="font-semibold">Duration (Weeks):</span>{" "}
+                {item.durationWeeks == null ? "N/A" : String(item.durationWeeks)}
+              </p>
+              <p>
+                <span className="font-semibold">Start Date:</span> {item.startDate ? new Date(item.startDate).toLocaleDateString() : "N/A"}
+              </p>
+              <p className="sm:col-span-2">
+                <span className="font-semibold">End Date:</span>{" "}
+                {item.endDate ? new Date(item.endDate).toLocaleDateString() : "N/A"}
+              </p>
+            </div>
+
+            {(item.studentVerificationComments || item.facultyVerificationComments) ? (
+              <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-200">
+                <p className="font-semibold">Verification Comments</p>
+                <div className="mt-2 space-y-2">
+                  <div>
+                    <p className="font-semibold">Student</p>
+                    <p className="break-words whitespace-pre-wrap">
+                      {item.studentVerificationComments?.trim() || "No comments from student."}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="font-semibold">Faculty (previous)</p>
+                    <p className="break-words whitespace-pre-wrap">
+                      {item.facultyVerificationComments?.trim() || "No previous faculty comments."}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
             <Textarea
               className="mt-2 min-h-20"
               placeholder="Optional verification comments"
