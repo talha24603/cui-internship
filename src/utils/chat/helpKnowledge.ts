@@ -55,7 +55,16 @@ export const HELP_KNOWLEDGE_BASE: HelpKnowledgeItem[] = [
     title: "Student creates internship entry",
     roleScope: ["STUDENT"],
     module: "create-internship",
-    keywords: ["create internship", "new internship", "submit internship", "student form"],
+    keywords: [
+      "create internship",
+      "new internship",
+      "submit internship",
+      "student form",
+      "start internship",
+      "how to start internship",
+      "how to create internship",
+      "internship starting steps",
+    ],
     content:
       "Students create internship records before submitting forms, logs, or final reports tied to that internship.",
     steps: [
@@ -150,6 +159,9 @@ export const HELP_KNOWLEDGE_BASE: HelpKnowledgeItem[] = [
       "appendix b",
       "internship assignment",
       "submit appex b",
+      "working of appexb",
+      "how appexb works",
+      "appexb working",
     ],
     content:
       "AppEx-B stores internship assignment details and can be created or updated by the student using an upsert flow.",
@@ -316,6 +328,9 @@ export const HELP_KNOWLEDGE_BASE: HelpKnowledgeItem[] = [
       "request changes appex b",
       "both verified",
       "pending verification",
+      "working of appexb",
+      "how appexb works",
+      "appexb process",
     ],
     content:
       "AppEx-B verification is dual-sided: faculty and student can approve or request changes, and system status is computed from both verification flags.",
@@ -328,6 +343,32 @@ export const HELP_KNOWLEDGE_BASE: HelpKnowledgeItem[] = [
       "Faculty can verify only assignments mapped to their facultyId.",
       "Missing assignment/action input causes request validation failure.",
       "If assignment is missing, verification routes return not found.",
+    ],
+  },
+  {
+    id: "forgot-password-and-reset-flow",
+    title: "Forgot password and reset password flow",
+    roleScope: ["ALL"],
+    module: "auth",
+    keywords: [
+      "forgot password",
+      "forget password",
+      "reset password",
+      "password reset link",
+      "cannot login password",
+      "how to reset password",
+    ],
+    content:
+      "Users can request a password reset link from the forgot-password page, then set a new password using the reset token URL.",
+    steps: [
+      "Open Forgot Password and submit your account email.",
+      "Check email for reset link and open the reset-password page with token parameter.",
+      "Enter new password (minimum 6 characters) and submit to complete reset.",
+    ],
+    blockers: [
+      "Missing or expired token causes reset-password request to fail as invalid/expired token.",
+      "If email is not registered, system still returns generic success response for security.",
+      "Weak password below minimum length is rejected by validation.",
     ],
   },
   {
@@ -1066,6 +1107,205 @@ export const HELP_KNOWLEDGE_BASE: HelpKnowledgeItem[] = [
       "Missing bearer token causes unauthorized response for protected APIs.",
       "Invalid or expired token causes unauthorized response.",
       "Correct token but wrong role causes forbidden response.",
+    ],
+  },
+  {
+    id: "student-first-time-onboarding-checklist",
+    title: "Student first-time onboarding checklist",
+    roleScope: ["STUDENT"],
+    module: "student-onboarding",
+    keywords: ["start guide", "new student", "first time login", "how to start portal", "onboarding checklist"],
+    content:
+      "First-time students should follow a fixed sequence: verify account, login, create internship, submit forms, then continue logs and report workflows.",
+    steps: [
+      "Verify email and login from the student portal.",
+      "Create internship record with correct company and dates.",
+      "Complete AppEx-A and AppEx-B, then monitor approval and verification statuses.",
+      "Submit weekly logs and final report, then track final result.",
+    ],
+    blockers: [
+      "Skipping internship creation blocks downstream form and log flows.",
+      "Unverified email can prevent successful login in strict auth setups.",
+    ],
+  },
+  {
+    id: "student-status-meaning-guide",
+    title: "Student status meanings and next actions",
+    roleScope: ["STUDENT"],
+    module: "student-status-guide",
+    keywords: ["status meaning", "pending meaning", "approved rejected status", "both verified", "what to do next"],
+    content:
+      "Student workflow statuses indicate where the process is blocked or complete and what action is expected next.",
+    steps: [
+      "Pending means waiting for reviewer action; monitor updates and keep data complete.",
+      "Rejected or changes requested means update fields/comments and resubmit.",
+      "Approved or both verified means proceed to next stage such as logs, report, or evaluation follow-up.",
+    ],
+    blockers: [
+      "Students often misread pending as a failure; it is usually a waiting state.",
+      "Ignoring reviewer comments can cause repeated rejections.",
+    ],
+  },
+  {
+    id: "student-deadline-and-timing-guidance",
+    title: "Student deadline and timing guidance",
+    roleScope: ["STUDENT"],
+    module: "student-deadlines",
+    keywords: ["deadline", "due date", "late submission", "when submit weekly log", "submission time"],
+    content:
+      "Students should submit forms and logs according to internship timeline and reviewer expectations to avoid delays.",
+    steps: [
+      "Submit AppEx and internship setup details as early as possible after internship confirmation.",
+      "Submit weekly logs in sequence with valid week numbers based on internship dates.",
+      "Submit final report before departmental cutoff and verify successful upload confirmation.",
+    ],
+    blockers: [
+      "Invalid date range or out-of-sequence week numbers can trigger validation errors.",
+      "Waiting until end dates can leave no buffer for review or correction.",
+    ],
+  },
+  {
+    id: "student-edit-and-resubmit-rules",
+    title: "Student edit and resubmit rules",
+    roleScope: ["STUDENT"],
+    module: "student-resubmission",
+    keywords: ["edit submission", "resubmit form", "update internship", "change after submit", "locked record"],
+    content:
+      "Some student records can be updated, but approval/finalization states may lock or constrain later edits.",
+    steps: [
+      "If rejected or changes requested, edit requested fields and resubmit from the same module.",
+      "For approved records, check whether workflow allows update or requires coordinator intervention.",
+      "After finalization-level actions, avoid assumptions and request admin/faculty guidance before changes.",
+    ],
+    blockers: [
+      "Trying to overwrite finalized data can fail silently or return errors depending on route policy.",
+      "Students may need reviewer comments to know exactly which fields to fix.",
+    ],
+  },
+  {
+    id: "student-upload-requirements-and-failures",
+    title: "Student upload requirements and common failures",
+    roleScope: ["STUDENT"],
+    module: "student-upload-help",
+    keywords: ["upload failed", "pdf required", "file type", "file too large", "report upload error"],
+    content:
+      "Upload flows depend on valid file type and complete internship linkage; final reports commonly require PDF.",
+    steps: [
+      "Use the allowed file type for the target module, especially PDF for final report submission.",
+      "Confirm internshipId and module form fields are present before uploading.",
+      "If upload fails, retry with a clean filename and stable connection, then recheck status in dashboard.",
+    ],
+    blockers: [
+      "Wrong file type or missing internship linkage causes immediate request rejection.",
+      "Network interruption during upload can leave the user unsure unless status is rechecked.",
+    ],
+  },
+  {
+    id: "student-notifications-and-feedback-check",
+    title: "Student notification and reviewer feedback check",
+    roleScope: ["STUDENT"],
+    module: "student-feedback",
+    keywords: ["where to see feedback", "review comments", "approval update", "status notification", "who reviewed"],
+    content:
+      "Students should regularly check module statuses and reviewer comments to quickly resolve pending or rejected submissions.",
+    steps: [
+      "Open the related module list and inspect latest status and remarks.",
+      "When rejected or changes requested, apply exactly the requested corrections.",
+      "If no update appears for long, contact assigned faculty or admin coordinator with internship details.",
+    ],
+    blockers: [
+      "Not checking reviewer remarks leads to repeated incorrect resubmissions.",
+      "Missing assignment mapping can delay who sees the submission for review.",
+    ],
+  },
+  {
+    id: "student-create-internship-troubleshooting",
+    title: "Student create internship troubleshooting",
+    roleScope: ["STUDENT"],
+    module: "create-internship",
+    keywords: ["cannot create internship", "internship form error", "duplicate internship", "invalid dates internship"],
+    content:
+      "Internship creation issues usually come from missing required fields, conflicting records, or invalid date/company details.",
+    steps: [
+      "Recheck required fields such as company details, role information, and internship dates.",
+      "Ensure dates are logically ordered and consistent with actual internship period.",
+      "If duplicate or conflict error appears, review existing internship entries before retrying.",
+    ],
+    blockers: [
+      "Conflicting existing internship records can block fresh creation attempts.",
+      "Invalid company data or date format can fail server-side validation.",
+    ],
+  },
+  {
+    id: "student-weekly-log-quality-tips",
+    title: "Student weekly log quality tips",
+    roleScope: ["STUDENT"],
+    module: "weekly-logs",
+    keywords: ["weekly log tips", "good weekly log", "activities skills challenges", "weekly log rejected"],
+    content:
+      "High-quality weekly logs include concrete activities, skills gained, and realistic challenges rather than one-line generic text.",
+    steps: [
+      "Write specific tasks completed in that week and mention tools or technologies used.",
+      "Describe measurable learning outcomes in skills learned.",
+      "List actual challenges and how they were handled or what support is needed.",
+    ],
+    blockers: [
+      "Very short generic text can reduce review quality and may trigger correction requests.",
+      "Submitting wrong week sequence can be rejected even with good content.",
+    ],
+  },
+  {
+    id: "student-final-report-quality-and-grading",
+    title: "Student final report quality and grading guidance",
+    roleScope: ["STUDENT"],
+    module: "final-report-guidance",
+    keywords: ["improve final report", "report quality", "how marks are decided", "ai suggested marks", "report grading"],
+    content:
+      "Final report quality improves when content is structured, specific, and aligned with internship work outcomes; AI suggestions support review but do not replace official grading.",
+    steps: [
+      "Include clear internship objectives, work performed, outcomes, and reflection.",
+      "Keep report readable and complete so text extraction and review both work reliably.",
+      "Treat AI suggestions as guidance only and follow faculty/admin grading decisions.",
+    ],
+    blockers: [
+      "Poorly structured or sparse report text can weaken AI and human review confidence.",
+      "Students may wrongly assume AI output is final grade without finalization workflow.",
+    ],
+  },
+  {
+    id: "student-dispute-and-recheck-process",
+    title: "Student dispute and recheck process for marks",
+    roleScope: ["STUDENT"],
+    module: "student-dispute",
+    keywords: ["dispute marks", "recheck result", "wrong grade", "appeal evaluation", "challenge marks"],
+    content:
+      "If students disagree with outcomes, they should raise a formal concern with evidence and request review through the proper channel.",
+    steps: [
+      "Collect relevant evidence such as submission timestamps, report copy, and evaluation context.",
+      "Submit concern through complaint or designated coordinator workflow with clear issue summary.",
+      "Track complaint/review status and respond promptly if clarification is requested.",
+    ],
+    blockers: [
+      "Vague complaints without evidence delay resolution.",
+      "Using informal channels only may not create an actionable review trail.",
+    ],
+  },
+  {
+    id: "forgot-password-email-not-received",
+    title: "Forgot password: reset email not received",
+    roleScope: ["ALL"],
+    module: "auth",
+    keywords: ["forgot password no email", "reset link not received", "password reset not coming", "check spam reset"],
+    content:
+      "If reset email is not visible, users should validate email entry, check spam/junk, and request a fresh reset link.",
+    steps: [
+      "Confirm you entered the same email used for account registration.",
+      "Check spam/junk/promotions folders and wait briefly for delivery delay.",
+      "Request a new reset link and use the latest email link to avoid expired token issues.",
+    ],
+    blockers: [
+      "Using older reset links can fail due to expiration.",
+      "Mailbox filtering rules can hide automated password reset emails.",
     ],
   },
 ];
