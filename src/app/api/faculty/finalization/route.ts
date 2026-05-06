@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/utils/prisma";
+import { InternshipStatus } from "@prisma/client";
 
 const FACULTY_MAX_MARKS = 40;
 const SITE_MAX_MARKS = 40;
@@ -247,30 +248,37 @@ export async function POST(req: Request) {
     const totalMarks = facultyMarks + siteMarks + officeMarks;
     const status = totalMarks >= PASS_THRESHOLD ? "pass" : "fail";
 
-    const finalResult = await prisma.finalResult.upsert({
-      where: { internshipId },
-      create: {
-        internshipId,
-        facultyMarks,
-        siteMarks,
-        officeMarks,
-        totalMarks,
-        status,
-        isFinalizedByFaculty: true,
-        finalizedAt: new Date(),
-        finalizedById: userId,
-      } as any,
-      update: {
-        facultyMarks,
-        siteMarks,
-        officeMarks,
-        totalMarks,
-        status,
-        isFinalizedByFaculty: true,
-        finalizedAt: new Date(),
-        finalizedById: userId,
-      } as any,
-    });
+    const finalizationTime = new Date();
+    const [finalResult] = await prisma.$transaction([
+      prisma.finalResult.upsert({
+        where: { internshipId },
+        create: {
+          internshipId,
+          facultyMarks,
+          siteMarks,
+          officeMarks,
+          totalMarks,
+          status,
+          isFinalizedByFaculty: true,
+          finalizedAt: finalizationTime,
+          finalizedById: userId,
+        } as any,
+        update: {
+          facultyMarks,
+          siteMarks,
+          officeMarks,
+          totalMarks,
+          status,
+          isFinalizedByFaculty: true,
+          finalizedAt: finalizationTime,
+          finalizedById: userId,
+        } as any,
+      }),
+      prisma.internship.update({
+        where: { id: internshipId },
+        data: { status: InternshipStatus.COMPLETED },
+      }),
+    ]);
     const finalizedRecord = finalResult as typeof finalResult & {
       isFinalizedByFaculty?: boolean;
       finalizedAt?: Date | null;

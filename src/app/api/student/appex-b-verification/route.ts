@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/utils/prisma";
+import { InternshipStatus } from "@prisma/client";
 
 // Helper function to calculate overall status based on verification states
 function calculateStatus(
@@ -238,8 +239,10 @@ export async function PATCH(req: Request) {
           internshipAssignmentId: string;
           startDate?: Date | null;
           endDate?: Date | null;
+          status?: InternshipStatus;
         } = {
           internshipAssignmentId: updatedAssignment.id,
+          status: InternshipStatus.APPROVED,
         };
 
         // Only update facultyId if it exists in AppEx B

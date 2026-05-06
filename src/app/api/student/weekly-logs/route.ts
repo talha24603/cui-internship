@@ -45,7 +45,7 @@ export async function GET(req: Request) {
 
     if (!internship) {
       return NextResponse.json(
-        { error: "No approved internship found for this student" },
+        { error: "No active internship found for this student. Please complete AppEx-B verification first." },
         { status: 404 }
       );
     }
@@ -151,7 +151,7 @@ export async function POST(req: Request) {
 
     if (!internship) {
       return NextResponse.json(
-        { error: "No approved internship found for this student" },
+        { error: "No active internship found for this student. Please complete AppEx-B verification first." },
         { status: 404 }
       );
     }
@@ -161,7 +161,7 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           error:
-            "Internship dates are not set. Please ensure your Annex A has been approved.",
+            "Internship dates are not set. Please ensure your AppEx-B assignment is verified and dates are provided.",
         },
         { status: 400 }
       );

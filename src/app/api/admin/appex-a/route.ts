@@ -162,7 +162,7 @@ export async function PATCH(req: Request) {
             type: resolvedType,
             startDate: appexA.startDate,
             endDate: appexA.endDate,
-            status: InternshipStatus.APPROVED,
+            status: InternshipStatus.PENDING,
             internshipApprovalId: appexA.id,
           },
         });
@@ -173,7 +173,7 @@ export async function PATCH(req: Request) {
             type: resolvedType,
             startDate: appexA.startDate,
             endDate: appexA.endDate,
-            status: InternshipStatus.APPROVED,
+            status: InternshipStatus.PENDING,
             internshipApprovalId: appexA.id,
           },
         });
