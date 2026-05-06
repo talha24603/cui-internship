@@ -1,5 +1,17 @@
 import { NextResponse } from "next/server";
 import prisma from "@/utils/prisma";
+import { InternshipStatus, InternshipType } from "@prisma/client";
+
+function resolveInternshipType(mode: string): InternshipType {
+  const normalizedMode = mode.trim().toLowerCase();
+  if (normalizedMode.includes("fiverr") || normalizedMode.includes("freelance")) {
+    return InternshipType.FIVERR;
+  }
+  if (normalizedMode.includes("remote")) {
+    return InternshipType.REMOTE;
+  }
+  return InternshipType.ONSITE;
+}
 
 // GET /api/student/appex-a - Get AppEx A for student's internship
 export async function GET(req: Request) {
@@ -153,6 +165,37 @@ export async function POST(req: Request) {
       }
     });
 
+    const internshipType = resolveInternshipType(mode);
+    const existingInternship = await prisma.internship.findFirst({
+      where: {
+        studentId: userId,
+        status: {
+          in: [InternshipStatus.PENDING, InternshipStatus.APPROVED],
+        },
+      },
+      select: { id: true },
+    });
+
+    if (existingInternship) {
+      await prisma.internship.update({
+        where: { id: existingInternship.id },
+        data: {
+          type: internshipType,
+          internshipApprovalId: appexA.id,
+          status: InternshipStatus.PENDING,
+        },
+      });
+    } else {
+      await prisma.internship.create({
+        data: {
+          studentId: userId,
+          type: internshipType,
+          status: InternshipStatus.PENDING,
+          internshipApprovalId: appexA.id,
+        },
+      });
+    }
+
     return NextResponse.json({
       message: "AppEx A submitted successfully",
       appexA
@@ -256,6 +299,28 @@ export async function PUT(req: Request) {
         status: 'pending'
       }
     });
+
+    const internshipType = resolveInternshipType(mode ?? existingAppexA.mode);
+    const linkedInternship = await prisma.internship.findFirst({
+      where: {
+        studentId: userId,
+        status: {
+          in: [InternshipStatus.PENDING, InternshipStatus.APPROVED],
+        },
+      },
+      select: { id: true },
+    });
+
+    if (linkedInternship) {
+      await prisma.internship.update({
+        where: { id: linkedInternship.id },
+        data: {
+          type: internshipType,
+          internshipApprovalId: updatedAppexA.id,
+          status: InternshipStatus.PENDING,
+        },
+      });
+    }
 
     return NextResponse.json({
       message: "AppEx A updated successfully",

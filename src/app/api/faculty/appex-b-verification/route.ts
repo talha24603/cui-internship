@@ -202,6 +202,17 @@ export async function PATCH(req: Request) {
       );
     }
 
+    if (
+      assignment.facultyVerified === true &&
+      assignment.studentVerified === true &&
+      action === "request_changes"
+    ) {
+      return NextResponse.json(
+        { error: "AppEx B is already BOTH_VERIFIED and cannot be rejected" },
+        { status: 409 }
+      );
+    }
+
     // Determine verification value: true for approve, false for request_changes
     const verified = action === "approve";
 

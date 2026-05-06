@@ -53,8 +53,7 @@ export default function StudentOverviewPage() {
       {!loading && !error && !internship ? (
         <Card>
           <p className="text-sm text-slate-700">
-            No internship found yet. Start from the Internship section to create your internship
-            request.
+            No internship found yet. Submit AppEx A to initiate your internship workflow.
           </p>
         </Card>
       ) : null}

@@ -1,5 +1,17 @@
 import { NextResponse } from "next/server";
 import prisma from "@/utils/prisma";
+import { InternshipStatus, InternshipType } from "@prisma/client";
+
+function resolveInternshipType(mode: string): InternshipType {
+  const normalizedMode = mode.trim().toLowerCase();
+  if (normalizedMode.includes("fiverr") || normalizedMode.includes("freelance")) {
+    return InternshipType.FIVERR;
+  }
+  if (normalizedMode.includes("remote")) {
+    return InternshipType.REMOTE;
+  }
+  return InternshipType.ONSITE;
+}
 
 // GET /api/admin/appex-a - Get all AppEx A submissions (Admin only)
 export async function GET(req: Request) {
@@ -132,27 +144,62 @@ export async function PATCH(req: Request) {
       data: { status },
     });
 
-    // If approved, update the internship with start and end dates
-    if (status === 'approved') {
-      // Find the student's internship
-      const internship = await prisma.internship.findFirst({
-        where: {
-          studentId: appexA.student.id,
-        },
-      });
+    const resolvedType = resolveInternshipType(appexA.mode);
+    const internship = await prisma.internship.findFirst({
+      where: {
+        studentId: appexA.student.id,
+      },
+      select: { id: true },
+    });
 
+    // If approved, ensure internship exists and sync approval metadata
+    if (status === 'approved') {
       if (internship) {
         // Update internship with dates from AppEx A
         await prisma.internship.update({
           where: { id: internship.id },
           data: {
+            type: resolvedType,
             startDate: appexA.startDate,
             endDate: appexA.endDate,
-            status: 'APPROVED',
+            status: InternshipStatus.APPROVED,
+            internshipApprovalId: appexA.id,
+          },
+        });
+      } else {
+        await prisma.internship.create({
+          data: {
+            studentId: appexA.student.id,
+            type: resolvedType,
+            startDate: appexA.startDate,
+            endDate: appexA.endDate,
+            status: InternshipStatus.APPROVED,
             internshipApprovalId: appexA.id,
           },
         });
       }
+    }
+
+    if (status === "rejected" && internship) {
+      await prisma.internship.update({
+        where: { id: internship.id },
+        data: {
+          type: resolvedType,
+          status: InternshipStatus.REJECTED,
+          internshipApprovalId: appexA.id,
+        },
+      });
+    }
+
+    if (status === "rejected" && !internship) {
+      await prisma.internship.create({
+        data: {
+          studentId: appexA.student.id,
+          type: resolvedType,
+          status: InternshipStatus.REJECTED,
+          internshipApprovalId: appexA.id,
+        },
+      });
     }
 
     return NextResponse.json({
@@ -169,5 +216,3 @@ export async function PATCH(req: Request) {
     );
   }
 }
-
-
