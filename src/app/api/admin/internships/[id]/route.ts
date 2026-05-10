@@ -57,9 +57,9 @@ export async function GET(
             regNo: true,
             verified: true,
             createdAt: true,
-            InternshipApproval: true,
-            InternshipAssignment: true,
-            InternshipProposal: true,
+            internshipApprovals: true,
+            internshipAssignments: true,
+            internshipProposals: true,
           },
         },
         faculty: {

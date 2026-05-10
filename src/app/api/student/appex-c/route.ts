@@ -91,11 +91,6 @@ export async function POST(req: Request) {
           },
         });
 
-    await prisma.internship.update({
-      where: { id: activeInternship.id },
-      data: { internshipProposalId: internshipProposal.id },
-    });
-
     return NextResponse.json(
       {
         message: "AppEx C saved successfully",
