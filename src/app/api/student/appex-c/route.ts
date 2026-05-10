@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/utils/prisma";
+import { InternshipStatus } from "@prisma/client";
 
 // POST /api/student/appex-c - Create or update AppEx C (Internship Proposal)
 export async function POST(req: Request) {
@@ -48,23 +49,51 @@ export async function POST(req: Request) {
       }
     }
 
-    const internshipProposal = await prisma.internshipProposal.upsert({
-      where: { studentId: userId },
-      update: {
-        organizationOverview,
-        roleDescription,
-        keyActivities,
-        toolsTechnologies,
-        expectedDeliverables,
-      },
-      create: {
+    const activeInternship = await prisma.internship.findFirst({
+      where: {
         studentId: userId,
-        organizationOverview,
-        roleDescription,
-        keyActivities,
-        toolsTechnologies,
-        expectedDeliverables,
+        status: { in: [InternshipStatus.PENDING, InternshipStatus.APPROVED] },
       },
+      orderBy: { createdAt: "desc" },
+      select: { id: true },
+    });
+
+    if (!activeInternship) {
+      return NextResponse.json(
+        { error: "No active internship attempt found. Please submit AppEx A first." },
+        { status: 400 }
+      );
+    }
+
+    const existingProposal = await prisma.internshipProposal.findFirst({
+      where: { internshipId: activeInternship.id },
+      select: { id: true },
+    });
+
+    const proposalData = {
+      organizationOverview,
+      roleDescription,
+      keyActivities,
+      toolsTechnologies,
+      expectedDeliverables,
+    };
+
+    const internshipProposal = existingProposal
+      ? await prisma.internshipProposal.update({
+          where: { id: existingProposal.id },
+          data: proposalData,
+        })
+      : await prisma.internshipProposal.create({
+          data: {
+            studentId: userId,
+            internshipId: activeInternship.id,
+            ...proposalData,
+          },
+        });
+
+    await prisma.internship.update({
+      where: { id: activeInternship.id },
+      data: { internshipProposalId: internshipProposal.id },
     });
 
     return NextResponse.json(

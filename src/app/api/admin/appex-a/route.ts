@@ -1,6 +1,22 @@
 import { NextResponse } from "next/server";
 import prisma from "@/utils/prisma";
-import { InternshipStatus, InternshipType } from "@prisma/client";
+import { InternshipApprovalStatus, InternshipStatus, InternshipType } from "@prisma/client";
+
+function appexAAdminQueryStatus(raw: string | null): InternshipApprovalStatus | undefined {
+  if (!raw) return undefined;
+  const s = raw.toLowerCase().trim();
+  if (s === "pending") return InternshipApprovalStatus.PENDING;
+  if (s === "approved") return InternshipApprovalStatus.APPROVED;
+  if (s === "rejected") return InternshipApprovalStatus.REJECTED;
+  return undefined;
+}
+
+function appexAAdminPatchStatus(raw: string): InternshipApprovalStatus | null {
+  const s = raw.toLowerCase().trim();
+  if (s === "approved") return InternshipApprovalStatus.APPROVED;
+  if (s === "rejected") return InternshipApprovalStatus.REJECTED;
+  return null;
+}
 
 function resolveInternshipType(mode: string): InternshipType {
   const normalizedMode = mode.trim().toLowerCase();
@@ -26,12 +42,12 @@ export async function GET(req: Request) {
     }
 
     const url = new URL(req.url);
-    const status = url.searchParams.get("status"); // pending/approved/rejected
+    const filterStatus = appexAAdminQueryStatus(url.searchParams.get("status"));
 
-    const where: any = {};
+    const where: { status?: InternshipApprovalStatus } = {};
 
-    if (status && ["pending", "approved", "rejected"].includes(status)) {
-      where.status = status;
+    if (filterStatus) {
+      where.status = filterStatus;
     }
 
     
@@ -106,7 +122,8 @@ export async function PATCH(req: Request) {
       );
     }
 
-    if (!["approved", "rejected"].includes(status)) {
+    const nextStatus = appexAAdminPatchStatus(status);
+    if (!nextStatus) {
       return NextResponse.json(
         { error: "Status must be either 'approved' or 'rejected'" },
         { status: 400 }
@@ -141,19 +158,26 @@ export async function PATCH(req: Request) {
 
     const updatedAppexA = await prisma.internshipApproval.update({
       where: { id: appexAId },
-      data: { status },
+      data: { status: nextStatus },
     });
 
     const resolvedType = resolveInternshipType(appexA.mode);
-    const internship = await prisma.internship.findFirst({
-      where: {
-        studentId: appexA.student.id,
-      },
-      select: { id: true },
-    });
+    const internship = appexA.internshipId
+      ? await prisma.internship.findUnique({
+          where: { id: appexA.internshipId },
+          select: { id: true },
+        })
+      : await prisma.internship.findFirst({
+          where: {
+            studentId: appexA.student.id,
+            status: { in: [InternshipStatus.PENDING, InternshipStatus.APPROVED] },
+          },
+          orderBy: { createdAt: "desc" },
+          select: { id: true },
+        });
 
     // If approved, ensure internship exists and sync approval metadata
-    if (status === 'approved') {
+    if (nextStatus === InternshipApprovalStatus.APPROVED) {
       if (internship) {
         // Update internship with dates from AppEx A
         await prisma.internship.update({
@@ -163,47 +187,51 @@ export async function PATCH(req: Request) {
             startDate: appexA.startDate,
             endDate: appexA.endDate,
             status: InternshipStatus.PENDING,
-            internshipApprovalId: appexA.id,
           },
         });
       } else {
-        await prisma.internship.create({
+        const created = await prisma.internship.create({
           data: {
             studentId: appexA.student.id,
             type: resolvedType,
             startDate: appexA.startDate,
             endDate: appexA.endDate,
             status: InternshipStatus.PENDING,
-            internshipApprovalId: appexA.id,
           },
+        });
+        await prisma.internshipApproval.update({
+          where: { id: appexA.id },
+          data: { internshipId: created.id },
         });
       }
     }
 
-    if (status === "rejected" && internship) {
+    if (nextStatus === InternshipApprovalStatus.REJECTED && internship) {
       await prisma.internship.update({
         where: { id: internship.id },
         data: {
           type: resolvedType,
           status: InternshipStatus.REJECTED,
-          internshipApprovalId: appexA.id,
         },
       });
     }
 
-    if (status === "rejected" && !internship) {
-      await prisma.internship.create({
+    if (nextStatus === InternshipApprovalStatus.REJECTED && !internship) {
+      const created = await prisma.internship.create({
         data: {
           studentId: appexA.student.id,
           type: resolvedType,
           status: InternshipStatus.REJECTED,
-          internshipApprovalId: appexA.id,
         },
+      });
+      await prisma.internshipApproval.update({
+        where: { id: appexA.id },
+        data: { internshipId: created.id },
       });
     }
 
     return NextResponse.json({
-      message: `AppEx A ${status} successfully`,
+      message: `AppEx A ${nextStatus.toLowerCase()} successfully`,
       appexA: updatedAppexA,
       student: appexA.student,
       processedBy: userId,

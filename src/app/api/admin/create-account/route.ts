@@ -25,8 +25,10 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Invalid role. Must be ADMIN, USER, FACULTY, or SITE_SUPERVISOR" }, { status: 400 });
       }
 
-      // For site supervisors, validate company exists
-      if (role === 'SITE_SUPERVISOR' && companyId) {
+      if (role === 'SITE_SUPERVISOR') {
+        if (!companyId) {
+          return NextResponse.json({ error: "Company is required for site supervisors" }, { status: 400 });
+        }
         const company = await prisma.company.findUnique({
           where: { id: companyId }
         });

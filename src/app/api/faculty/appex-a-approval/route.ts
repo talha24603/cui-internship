@@ -1,5 +1,21 @@
 import { NextResponse } from "next/server";
+import { InternshipApprovalStatus } from "@prisma/client";
 import prisma from "@/utils/prisma";
+
+function appexAQueryStatus(raw: string | null): InternshipApprovalStatus | "all" {
+  const s = (raw ?? "pending").toLowerCase().trim();
+  if (s === "all") return "all";
+  if (s === "approved") return InternshipApprovalStatus.APPROVED;
+  if (s === "rejected") return InternshipApprovalStatus.REJECTED;
+  return InternshipApprovalStatus.PENDING;
+}
+
+function appexAPatchStatus(raw: string): InternshipApprovalStatus | null {
+  const s = raw.toLowerCase().trim();
+  if (s === "approved") return InternshipApprovalStatus.APPROVED;
+  if (s === "rejected") return InternshipApprovalStatus.REJECTED;
+  return null;
+}
 
 // GET /api/faculty/appex-a-approval - Get all pending AppEx A submissions (Faculty/Admin only)
 export async function GET(req: Request) {
@@ -17,15 +33,15 @@ export async function GET(req: Request) {
     }
 
     const url = new URL(req.url);
-    const status = url.searchParams.get('status') || 'pending';
+    const filterStatus = appexAQueryStatus(url.searchParams.get("status"));
     const page = parseInt(url.searchParams.get('page') || '1');
     const limit = parseInt(url.searchParams.get('limit') || '10');
     const skip = (page - 1) * limit;
 
     // Get AppEx A submissions with filters
-    const whereClause: any = {};
-    if (status !== 'all') {
-      whereClause.status = status;
+    const whereClause: { status?: InternshipApprovalStatus } = {};
+    if (filterStatus !== "all") {
+      whereClause.status = filterStatus;
     }
 
     const [appexASubmissions, total] = await Promise.all([
@@ -84,7 +100,8 @@ export async function PATCH(req: Request) {
       }, { status: 400 });
     }
 
-    if (!['approved', 'rejected'].includes(status)) {
+    const nextStatus = appexAPatchStatus(status);
+    if (!nextStatus) {
       return NextResponse.json({ 
         error: "Status must be either 'approved' or 'rejected'" 
       }, { status: 400 });
@@ -104,7 +121,7 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "AppEx A submission not found" }, { status: 404 });
     }
 
-    if (appexA.status !== 'pending') {
+    if (appexA.status !== InternshipApprovalStatus.PENDING) {
       return NextResponse.json({ 
         error: "AppEx A has already been processed" 
       }, { status: 409 });
@@ -115,14 +132,14 @@ export async function PATCH(req: Request) {
     // Faculty approval only updates AppEx A status, not the internship
     const updatedAppexA = await prisma.internshipApproval.update({
       where: { id: appexAId },
-      data: { status }
+      data: { status: nextStatus }
     });
 
     // Log the approval/rejection (you might want to create a separate table for this)
-    console.log(`${userRole} ${userId} ${status} AppEx A for student ${appexA.student.name} (${appexA.student.regNo}). Comments: ${comments || 'None'}`);
+    console.log(`${userRole} ${userId} ${nextStatus} AppEx A for student ${appexA.student.name} (${appexA.student.regNo}). Comments: ${comments || 'None'}`);
 
     return NextResponse.json({
-      message: `AppEx A ${status} successfully`,
+      message: `AppEx A ${nextStatus.toLowerCase()} successfully`,
       appexA: updatedAppexA,
       student: appexA.student
     });

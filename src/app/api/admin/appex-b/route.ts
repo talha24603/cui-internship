@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { InternshipAssignmentStatus } from "@prisma/client";
 import prisma from "@/utils/prisma";
 
 function normalizeDateInput(value: unknown): string | null | undefined {
@@ -313,8 +314,9 @@ export async function PATCH(req: Request) {
       );
     }
 
-    const existingAssignment = await prisma.internshipAssignment.findUnique({
+    const existingAssignment = await prisma.internshipAssignment.findFirst({
       where: { studentId },
+      orderBy: { id: "desc" },
       select: {
         id: true,
         companyName: true,
@@ -363,10 +365,7 @@ export async function PATCH(req: Request) {
       updateData.studentVerified = null;
       updateData.studentVerifiedAt = null;
       updateData.studentVerificationComments = null;
-      updateData.status = "PENDING_VERIFICATION";
-    } else if (!updateData.status && !existingAssignment.status) {
-      // If no status is being set and current status is null, set to PENDING_VERIFICATION
-      updateData.status = "PENDING_VERIFICATION";
+      updateData.status = InternshipAssignmentStatus.PENDING_VERIFICATION;
     }
 
     // Handle admin approval status if provided
@@ -391,7 +390,7 @@ export async function PATCH(req: Request) {
     }
 
     const updatedAssignment = await prisma.internshipAssignment.update({
-      where: { studentId },
+      where: { id: existingAssignment.id },
       data: updateData,
       include: {
         student: {

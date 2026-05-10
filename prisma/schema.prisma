@@ -4,7 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url      = "postgresql://neondb_owner:npg_qexKY2t7irSO@ep-young-breeze-ao0qmtfw-pooler.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
 }
 
 enum InternshipType {
@@ -18,6 +18,20 @@ enum InternshipStatus {
   APPROVED
   COMPLETED
   REJECTED
+}
+
+enum InternshipApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum InternshipAssignmentStatus {
+  PENDING_VERIFICATION
+  FACULTY_VERIFIED
+  STUDENT_VERIFIED
+  BOTH_VERIFIED
+  CHANGES_REQUESTED
 }
 
 enum AdminApprovalStatus {
@@ -58,26 +72,34 @@ model User {
   verified                Boolean          @default(false)
   createdAt               DateTime         @default(now())
   updatedAt               DateTime         @updatedAt
+
+  companyId               String?
+
   tokens                  RefreshToken[]
   facultyProfile          FacultyProfile?
+
   internships             Internship[]     @relation("StudentInternships")
   facultyInternships      Internship[]     @relation("FacultyInternships")
   siteInternships         Internship[]     @relation("SiteInternships")
+
   evaluations             Evaluation[]
+
   companyRequests         CompanyRequest[]
   reviewedCompanyRequests CompanyRequest[] @relation("CompanyRequestReviewer")
 
-  // Company relationship for site supervisors
-  companyId            String?
-  company              Company?              @relation("CompanySiteSupervisors", fields: [companyId], references: [id])
-  InternshipApproval   InternshipApproval?
-  InternshipAssignment InternshipAssignment?
-  InternshipProposal   InternshipProposal?
+  company                 Company?         @relation("CompanySiteSupervisors", fields: [companyId], references: [id])
+
+  internshipApprovals     InternshipApproval[]
+  internshipAssignments   InternshipAssignment[]
+  internshipProposals     InternshipProposal[]
+
   facultySupervisorAssignments InternshipAssignment[] @relation("FacultySupervisorAssignments")
   siteSupervisorAssignments    InternshipAssignment[] @relation("SiteSupervisorAssignments")
-  announcements                Announcement[]
-  complaintsSubmitted          Complaint[]            @relation("ComplaintSubmitted")
-  complaintsHandled            Complaint[]            @relation("ComplaintHandled")
+
+  announcements          Announcement[]
+
+  complaintsSubmitted    Complaint[] @relation("ComplaintSubmitted")
+  complaintsHandled      Complaint[] @relation("ComplaintHandled")
 }
 
 model RefreshToken {
@@ -87,13 +109,13 @@ model RefreshToken {
   createdAt DateTime @default(now())
   expiresAt DateTime
   revoked   Boolean  @default(false)
-  user      User     @relation(fields: [userId], references: [id])
+
+  user User @relation(fields: [userId], references: [id])
 }
 
 model FacultyProfile {
   id     String @id @default(uuid())
   userId String @unique
-  user   User   @relation(fields: [userId], references: [id])
 
   department     String?
   designation    String?
@@ -106,6 +128,8 @@ model FacultyProfile {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
 
   @@map("facultyProfile")
 }
@@ -122,12 +146,11 @@ model Company {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  // Site supervisors associated with this company
   siteSupervisors User[] @relation("CompanySiteSupervisors")
 }
 
 model CompanyRequest {
-  id            String    @id @default(uuid())
+  id            String   @id @default(uuid())
   name          String
   email         String
   phone         String?
@@ -135,75 +158,87 @@ model CompanyRequest {
   website       String?
   industry      String?
   description   String?
-  reason        String? // Why the student wants this company added
-  status        String    @default("PENDING") // PENDING, APPROVED, REJECTED
-  requestedBy   User      @relation(fields: [requestedById], references: [id])
+  reason        String?
+  status        String   @default("PENDING")
+
   requestedById String
-  reviewedBy    User?     @relation("CompanyRequestReviewer", fields: [reviewedById], references: [id])
   reviewedById  String?
-  reviewedAt    DateTime?
-  notes         String? // Admin notes for approval/rejection
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+
+  reviewedAt DateTime?
+  notes      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  requestedBy User  @relation(fields: [requestedById], references: [id])
+  reviewedBy  User? @relation("CompanyRequestReviewer", fields: [reviewedById], references: [id])
 }
 
 model Internship {
-  id        String  @id @default(uuid())
-  student   User    @relation("StudentInternships", fields: [studentId], references: [id])
+  id        String @id @default(uuid())
+
   studentId String
-  faculty   User?   @relation("FacultyInternships", fields: [facultyId], references: [id])
   facultyId String?
-  site      User?   @relation("SiteInternships", fields: [siteId], references: [id])
   siteId    String?
 
   type      InternshipType
-  startDate DateTime? // will be set after Annex A is approved
-  endDate   DateTime? // will be set after Annex A is approved
+  startDate DateTime?
+  endDate   DateTime?
   status    InternshipStatus
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  student User  @relation("StudentInternships", fields: [studentId], references: [id])
+  faculty User? @relation("FacultyInternships", fields: [facultyId], references: [id])
+  site    User? @relation("SiteInternships", fields: [siteId], references: [id])
 
   reports     InternshipReport[]
   weeklyLogs  WeeklyLog[]
   evaluations Evaluation[]
+  complaints  Complaint[]
   finalResult FinalResult?
 
-  createdAt              DateTime @default(now())
-  updatedAt              DateTime @updatedAt
-  internshipApprovalId   String?
-  internshipAssignmentId String?
-  internshipProposalId   String?
-  complaints             Complaint[]
+  internshipApproval   InternshipApproval?
+
+  // ✅ ADD THESE TWO
+  internshipAssignment InternshipAssignment?
+  internshipProposal   InternshipProposal?   @relation("InternshipProposalRecord")
 
   @@index([studentId])
   @@index([facultyId])
   @@index([siteId])
 }
-
 model Complaint {
   id              String            @id @default(uuid())
   subject         String
   body            String            @db.Text
   category        ComplaintCategory @default(GENERAL)
   status          ComplaintStatus   @default(OPEN)
+
   internshipId    String?
-  internship      Internship?       @relation(fields: [internshipId], references: [id])
-  submittedBy     User              @relation("ComplaintSubmitted", fields: [submittedById], references: [id])
   submittedById   String
-  resolutionNotes String?           @db.Text
-  handledBy       User?             @relation("ComplaintHandled", fields: [handledById], references: [id])
   handledById     String?
+
+  resolutionNotes String? @db.Text
   handledAt       DateTime?
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  internship  Internship? @relation(fields: [internshipId], references: [id])
+  submittedBy User        @relation("ComplaintSubmitted", fields: [submittedById], references: [id])
+  handledBy   User?       @relation("ComplaintHandled", fields: [handledById], references: [id])
 
   @@index([submittedById])
   @@index([internshipId])
   @@index([status, createdAt])
 }
-
 model InternshipApproval {
   id        String @id @default(uuid())
-  student   User   @relation(fields: [studentId], references: [id])
-  studentId String @unique
+
+  studentId    String
+  internshipId String @unique
 
   organization       String
   address            String
@@ -217,109 +252,144 @@ model InternshipApproval {
   mode               String
   numberOfInternship String
 
-  startDate DateTime // student provides here
-  endDate   DateTime // student provides here
+  startDate DateTime
+  endDate   DateTime
 
   workingDays  String
   workingHours String
-  status       String // pending, approved, rejected
-}
+  status       InternshipApprovalStatus @default(PENDING)
 
+  student    User        @relation(fields: [studentId], references: [id])
+  internship Internship  @relation(fields: [internshipId], references: [id])
+
+  @@index([studentId])
+}
 model InternshipAssignment {
-  id            String @id @default(uuid())
-  student       User   @relation(fields: [studentId], references: [id])
-  studentId     String @unique
-  name          String
-  degreeProgram String
-  email                      String
-  semester                   String
-  contactNo                  String
-  preferredField             String
+  id String @id @default(uuid())
+
+  internshipId String @unique
+  studentId    String
+
+  name           String
+  degreeProgram  String
+  email          String
+  semester       String
+  contactNo      String
+  preferredField String
+
   companyName                String?
   internshipRole             String?
   facultySupervisorNameDesig String?
   siteSupervisorNameDesig    String?
-  durationWeeks              Int?
-  startDate                  DateTime?
-  endDate                    DateTime?
-  agreementAccepted          Boolean?
-  status                     String?
-  facultyId                  String?
-  faculty                    User?   @relation("FacultySupervisorAssignments", fields: [facultyId], references: [id])
-  siteId                     String?
-  site                       User?   @relation("SiteSupervisorAssignments", fields: [siteId], references: [id])
-  // Verification fields
+
+  durationWeeks     Int?
+  startDate         DateTime?
+  endDate           DateTime?
+  agreementAccepted Boolean
+
+  status InternshipAssignmentStatus @default(PENDING_VERIFICATION)
+
+  facultyId String?
+  siteId    String?
+
   facultyVerified             Boolean?
   facultyVerifiedAt           DateTime?
   facultyVerificationComments String?
+
   studentVerified             Boolean?
   studentVerifiedAt           DateTime?
   studentVerificationComments String?
 
-  // Admin approval status for AppEx B
   adminApprovalStatus AdminApprovalStatus @default(PENDING)
+
+  student User @relation(fields: [studentId], references: [id])
+
+  internship Internship @relation(fields: [internshipId], references: [id], onDelete: Cascade)
+
+  faculty User? @relation("FacultySupervisorAssignments", fields: [facultyId], references: [id])
+  site    User? @relation("SiteSupervisorAssignments", fields: [siteId], references: [id])
+
+  @@index([studentId])
+  @@index([internshipId])
 }
 
 model InternshipProposal {
-  id                   String   @id @default(uuid())
-  student              User     @relation(fields: [studentId], references: [id])
-  studentId            String   @unique
+  id        String @id @default(uuid())
+
+  studentId    String
+  internshipId String? @unique
+
   organizationOverview String
   roleDescription      String
-  keyActivities        String  
+  keyActivities        String
   toolsTechnologies    String
   expectedDeliverables String
-  submittedDate        DateTime @default(now())
+
+  submittedDate DateTime @default(now())
+
+  student    User        @relation(fields: [studentId], references: [id])
+  internship Internship? @relation("InternshipProposalRecord", fields: [internshipId], references: [id])
+
+  @@index([studentId])
 }
 
 model InternshipReport {
-  id            String     @id @default(uuid())
-  internship    Internship @relation(fields: [internshipId], references: [id])
-  internshipId  String
-  type          String // weekly, final, reflective, D1, D2
-  fileUrl       String
-  summary       String?
-  submittedDate DateTime   @default(now())
+  id           String   @id @default(uuid())
+  internshipId String
+  type         String
+  fileUrl      String
+  summary      String?
+  submittedDate DateTime @default(now())
+
+  internship Internship @relation(fields: [internshipId], references: [id])
 }
 
 model WeeklyLog {
-  id             String     @id @default(uuid())
-  internship     Internship @relation(fields: [internshipId], references: [id])
+  id             String   @id @default(uuid())
   internshipId   String
   weekNo         Int
   activitiesDone String
   skillsLearned  String
   challenges     String
-  submittedDate  DateTime   @default(now())
+  submittedDate  DateTime @default(now())
+
+  internship Internship @relation(fields: [internshipId], references: [id])
 }
 
 model Evaluation {
-  id            String     @id @default(uuid())
-  internship    Internship @relation(fields: [internshipId], references: [id])
-  internshipId  String
-  evaluator     User?      @relation(fields: [evaluatorId], references: [id])
-  evaluatorId   String?
-  type          String // site_mid, site_final, faculty, office, presentation
-  marks         Int
-  comments      String?
-  details       Json?
-  submittedDate DateTime   @default(now())
+  id           String   @id @default(uuid())
+  internshipId String
+  evaluatorId  String?
+
+  type    String
+  marks   Int
+  comments String?
+  details Json?
+
+  submittedDate DateTime @default(now())
+
+  internship Internship @relation(fields: [internshipId], references: [id])
+  evaluator  User?      @relation(fields: [evaluatorId], references: [id])
 }
 
 model FinalResult {
-  id                String     @id @default(uuid())
-  internship        Internship @relation(fields: [internshipId], references: [id])
-  internshipId      String     @unique
+  id           String @id @default(uuid())
+  internshipId String @unique
+
   facultyMarks      Int
   siteMarks         Int?
   officeMarks       Int
   presentationMarks Int?
   totalMarks        Int
-  status            String // pass, fail
+
+  status String
+
   isFinalizedByFaculty Boolean @default(false)
-  finalizedAt       DateTime?
-  finalizedById     String?
-  hodSignatureUrl   String?
+  finalizedAt          DateTime?
+  finalizedById        String?
+  hodSignatureUrl      String?
+
+  internship Internship @relation(fields: [internshipId], references: [id])
 }
 
 model Announcement {
@@ -328,10 +398,13 @@ model Announcement {
   message     String
   link        String?
   pinned      Boolean  @default(false)
-  createdBy   User?    @relation(fields: [createdById], references: [id])
+
   createdById String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdBy User? @relation(fields: [createdById], references: [id])
 
   @@index([pinned, createdAt])
 }

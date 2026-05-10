@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import prisma from "@/utils/prisma";
-import { InternshipStatus, InternshipType } from "@prisma/client";
+import { InternshipApprovalStatus, InternshipStatus, InternshipType } from "@prisma/client";
+
+/* ------------------ Helper ------------------ */
 
 function resolveInternshipType(mode: string): InternshipType {
   const normalizedMode = mode.trim().toLowerCase();
+
   if (normalizedMode.includes("fiverr") || normalizedMode.includes("freelance")) {
     return InternshipType.FIVERR;
   }
@@ -13,74 +16,214 @@ function resolveInternshipType(mode: string): InternshipType {
   return InternshipType.ONSITE;
 }
 
-// GET /api/student/appex-a - Get AppEx A for student's internship
+/* ------------------ Validation ------------------ */
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_REGEX = /^[+\d][\d\s\-()]{6,19}$/;
+const ALLOWED_MODES = ["onsite", "remote", "hybrid", "fiverr", "freelance"];
+const MIN_INTERNSHIP_WEEKS = 6;
+
+type AppexAInput = {
+  organization?: unknown;
+  address?: unknown;
+  industrySector?: unknown;
+  contactName?: unknown;
+  contactDesignation?: unknown;
+  contactPhone?: unknown;
+  contactEmail?: unknown;
+  internshipLocation?: unknown;
+  internshipNature?: unknown;
+  mode?: unknown;
+  numberOfInternship?: unknown;
+  startDate?: unknown;
+  endDate?: unknown;
+  workingDays?: unknown;
+  workingHours?: unknown;
+};
+
+function isNonEmptyString(value: unknown, min = 1, max = 500): value is string {
+  return typeof value === "string" && value.trim().length >= min && value.trim().length <= max;
+}
+
+function validateAppexA(
+  data: AppexAInput,
+  options: { partial?: boolean } = {}
+): { ok: true } | { ok: false; error: string } {
+  const partial = options.partial ?? false;
+  const required = (key: keyof AppexAInput) => !partial || data[key] !== undefined;
+
+  const checks: Array<{ when: boolean; ok: boolean; error: string }> = [
+    {
+      when: required("organization"),
+      ok: isNonEmptyString(data.organization, 2, 200),
+      error: "organization must be 2-200 characters",
+    },
+    {
+      when: required("address"),
+      ok: isNonEmptyString(data.address, 5, 500),
+      error: "address must be 5-500 characters",
+    },
+    {
+      when: required("industrySector"),
+      ok: isNonEmptyString(data.industrySector, 2, 100),
+      error: "industrySector must be 2-100 characters",
+    },
+    {
+      when: required("contactName"),
+      ok: isNonEmptyString(data.contactName, 2, 100),
+      error: "contactName must be 2-100 characters",
+    },
+    {
+      when: required("contactDesignation"),
+      ok: isNonEmptyString(data.contactDesignation, 2, 100),
+      error: "contactDesignation must be 2-100 characters",
+    },
+    {
+      when: required("contactPhone"),
+      ok: typeof data.contactPhone === "string" && PHONE_REGEX.test(data.contactPhone.trim()),
+      error: "contactPhone is not a valid phone number",
+    },
+    {
+      when: required("contactEmail"),
+      ok: typeof data.contactEmail === "string" && EMAIL_REGEX.test(data.contactEmail.trim()),
+      error: "contactEmail is not a valid email",
+    },
+    {
+      when: required("internshipLocation"),
+      ok: isNonEmptyString(data.internshipLocation, 2, 200),
+      error: "internshipLocation must be 2-200 characters",
+    },
+    {
+      when: required("internshipNature"),
+      ok: isNonEmptyString(data.internshipNature, 2, 200),
+      error: "internshipNature must be 2-200 characters",
+    },
+    {
+      when: required("mode"),
+      ok:
+        typeof data.mode === "string" &&
+        ALLOWED_MODES.includes(data.mode.trim().toLowerCase()),
+      error: `mode must be one of: ${ALLOWED_MODES.join(", ")}`,
+    },
+    {
+      when: required("numberOfInternship"),
+      ok:
+        typeof data.numberOfInternship === "string" &&
+        Number.isInteger(Number(data.numberOfInternship)) &&
+        Number(data.numberOfInternship) >= 1 &&
+        Number(data.numberOfInternship) <= 100,
+      error: "numberOfInternship must be an integer between 1 and 100",
+    },
+    {
+      when: required("workingDays"),
+      ok: isNonEmptyString(data.workingDays, 2, 100),
+      error: "workingDays must be 2-100 characters",
+    },
+    {
+      when: required("workingHours"),
+      ok: isNonEmptyString(data.workingHours, 2, 100),
+      error: "workingHours must be 2-100 characters",
+    },
+  ];
+
+  for (const check of checks) {
+    if (check.when && !check.ok) {
+      return { ok: false, error: check.error };
+    }
+  }
+
+  return { ok: true };
+}
+
+function validateDateRange(
+  startDate: unknown,
+  endDate: unknown
+): { ok: true; start: Date; end: Date } | { ok: false; error: string } {
+  if (typeof startDate !== "string" || typeof endDate !== "string") {
+    return { ok: false, error: "startDate and endDate must be ISO date strings" };
+  }
+
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return { ok: false, error: "startDate or endDate is not a valid date" };
+  }
+
+  if (start >= end) {
+    return { ok: false, error: "startDate must be earlier than endDate" };
+  }
+
+  const weeks = (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24 * 7);
+  if (weeks < MIN_INTERNSHIP_WEEKS) {
+    return {
+      ok: false,
+      error: `Internship duration must be at least ${MIN_INTERNSHIP_WEEKS} weeks`,
+    };
+  }
+
+  return { ok: true, start, end };
+}
+
+/* ------------------ Active Internship ------------------ */
+
+async function getActiveInternshipId(studentId: string) {
+  const internship = await prisma.internship.findFirst({
+    where: {
+      studentId,
+      status: { not: InternshipStatus.REJECTED },
+    },
+    orderBy: { createdAt: "desc" },
+    select: { id: true },
+  });
+
+  return internship?.id ?? null;
+}
+
+/* ------------------ GET ------------------ */
+
 export async function GET(req: Request) {
   try {
-    // Get user info from middleware headers (already verified)
     const userId = req.headers.get("x-user-id");
     const userRole = req.headers.get("x-user-role");
 
-    if (!userId || !userRole) {
-      return NextResponse.json(
-        { error: "User information not found" },
-        { status: 401 }
-      );
+    if (!userId || userRole !== "STUDENT") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (userRole !== "STUDENT" && userRole !== "ADMIN") {
-      return NextResponse.json(
-        { error: "Only students can access their AppEx A" },
-        { status: 403 }
-      );
+    const internshipId = await getActiveInternshipId(userId);
+
+    if (!internshipId) {
+      return NextResponse.json({ error: "No internship found" }, { status: 404 });
     }
 
-    // AppEx A is linked directly with User (student), not Internship
-    const appexA = await prisma.internshipApproval.findUnique({
-      where: { studentId: userId },
-      include: {
-        student: {
-          select: { id: true, name: true, email: true, regNo: true },
-        },
-      },
+    const appexA = await prisma.internshipApproval.findFirst({
+      where: { internshipId },
     });
-
-    if (!appexA) {
-      return NextResponse.json(
-        { error: "AppEx A not found for this student" },
-        { status: 404 }
-      );
-    }
 
     return NextResponse.json({
-      message: "AppEx A retrieved successfully",
+      message: "AppEx A fetched successfully",
       appexA,
     });
+
   } catch (error) {
-    console.error("Get AppEx A error:", error);
-    return NextResponse.json(
-      { error: "Internal Server Error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
 
+/* ------------------ POST (CREATE) ------------------ */
 
-// POST /api/student/appex-a - Create/Submit AppEx A
 export async function POST(req: Request) {
   try {
-    // Get user info from middleware headers (already verified)
-    const userId = req.headers.get('x-user-id');
-    const userRole = req.headers.get('x-user-role');
+    const userId = req.headers.get("x-user-id");
+    const userRole = req.headers.get("x-user-role");
 
-    if (!userId || !userRole) {
-      return NextResponse.json({ error: "User information not found" }, { status: 401 });
-    }
-
-    if (userRole !== 'STUDENT' && userRole !== 'ADMIN') {
-      return NextResponse.json({ error: "Only students can submit AppEx A" }, { status: 403 });
+    if (!userId || userRole !== "STUDENT") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body = await req.json();
+
     const {
       organization,
       address,
@@ -96,56 +239,59 @@ export async function POST(req: Request) {
       startDate,
       endDate,
       workingDays,
-      workingHours
+      workingHours,
     } = body;
 
-    // Validate required fields
-    const requiredFields = [
-      'organization', 'address', 'industrySector', 'contactName',
-      'contactDesignation', 'contactPhone', 'contactEmail',
-      'internshipLocation', 'internshipNature', 'mode', 'numberOfInternship', 'startDate', 'endDate',
-      'workingDays', 'workingHours'
-    ];
-
-    for (const field of requiredFields) {
-      if (!body[field]) {
-        return NextResponse.json({
-          error: `Missing required field: ${field}`
-        }, { status: 400 });
-      }
+    const validation = validateAppexA(body);
+    if (!validation.ok) {
+      return NextResponse.json({ error: validation.error }, { status: 400 });
     }
 
-    // Check if AppEx A already exists for this student
-    const existingAppexA = await prisma.internshipApproval.findUnique({
-      where: { studentId: userId }
+    const dateCheck = validateDateRange(startDate, endDate);
+    if (!dateCheck.ok) {
+      return NextResponse.json({ error: dateCheck.error }, { status: 400 });
+    }
+    const { start, end } = dateCheck;
+
+    const internshipType = resolveInternshipType(mode);
+
+    const pendingInternship = await prisma.internship.findFirst({
+      where: {
+        studentId: userId,
+        status: InternshipStatus.PENDING,
+      },
+      orderBy: { createdAt: "desc" },
+      select: { id: true },
     });
 
-    if (existingAppexA) {
-      return NextResponse.json({
-        error: "AppEx A already exists for this internship"
-      }, { status: 409 });
+    if (!pendingInternship) {
+      return NextResponse.json(
+        {
+          error:
+            "No pending internship found. Please create an internship first before submitting AppEx A.",
+        },
+        { status: 400 }
+      );
     }
 
-    // Validate date format and logic
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+    const internshipId = pendingInternship.id;
 
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-      return NextResponse.json({
-        error: "Invalid date format"
-      }, { status: 400 });
+    const existing = await prisma.internshipApproval.findFirst({
+      where: { internshipId },
+    });
+
+    if (existing) {
+      return NextResponse.json(
+        { error: "AppEx A already exists. Use update instead." },
+        { status: 409 }
+      );
     }
 
-    if (start >= end) {
-      return NextResponse.json({
-        error: "Start date must be before end date"
-      }, { status: 400 });
-    }
-
-    // Create AppEx A linked to the student (User), not Internship
     const appexA = await prisma.internshipApproval.create({
       data: {
         studentId: userId,
+        internshipId,
+
         organization,
         address,
         industrySector,
@@ -154,75 +300,54 @@ export async function POST(req: Request) {
         contactPhone,
         contactEmail,
         internshipNature,
+        internshipLocation,
         mode,
         numberOfInternship,
-        internshipLocation,
+
         startDate: start,
         endDate: end,
+
         workingDays,
         workingHours,
-        status: 'pending'
-      }
-    });
 
-    const internshipType = resolveInternshipType(mode);
-    const existingInternship = await prisma.internship.findFirst({
-      where: {
-        studentId: userId,
-        status: {
-          in: [InternshipStatus.PENDING, InternshipStatus.APPROVED],
-        },
+        status: InternshipApprovalStatus.PENDING,
       },
-      select: { id: true },
     });
 
-    if (existingInternship) {
-      await prisma.internship.update({
-        where: { id: existingInternship.id },
-        data: {
-          type: internshipType,
-          internshipApprovalId: appexA.id,
-          status: InternshipStatus.PENDING,
-        },
-      });
-    } else {
-      await prisma.internship.create({
-        data: {
-          studentId: userId,
-          type: internshipType,
-          status: InternshipStatus.PENDING,
-          internshipApprovalId: appexA.id,
-        },
-      });
-    }
+    await prisma.internship.update({
+      where: { id: internshipId },
+      data: {
+        type: internshipType,
+        status: InternshipStatus.PENDING,
+      },
+    });
 
-    return NextResponse.json({
-      message: "AppEx A submitted successfully",
-      appexA
-    }, { status: 201 });
+    return NextResponse.json(
+      {
+        message: "AppEx A created successfully",
+        appexA,
+      },
+      { status: 201 }
+    );
 
   } catch (error) {
-    console.error("Create AppEx A error:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
 
-// PUT /api/student/appex-a - Update AppEx A
+/* ------------------ PUT (UPDATE / RESUBMIT) ------------------ */
+
 export async function PUT(req: Request) {
   try {
-    // Get user info from middleware headers (already verified)
-    const userId = req.headers.get('x-user-id');
-    const userRole = req.headers.get('x-user-role');
+    const userId = req.headers.get("x-user-id");
+    const userRole = req.headers.get("x-user-role");
 
-    if (!userId || !userRole) {
-      return NextResponse.json({ error: "User information not found" }, { status: 401 });
-    }
-
-    if (userRole !== 'STUDENT' && userRole !== 'ADMIN') {
-      return NextResponse.json({ error: "Only students can update their AppEx A" }, { status: 403 });
+    if (!userId || userRole !== "STUDENT") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body = await req.json();
+
     const {
       organization,
       address,
@@ -231,104 +356,94 @@ export async function PUT(req: Request) {
       contactDesignation,
       contactPhone,
       contactEmail,
+      internshipLocation,
       internshipNature,
       mode,
       numberOfInternship,
-      internshipLocation,
       startDate,
       endDate,
       workingDays,
-      workingHours
+      workingHours,
     } = body;
 
-    // Find student's AppEx A (linked with User)
-    const existingAppexA = await prisma.internshipApproval.findUnique({
-      where: { studentId: userId },
+    const validation = validateAppexA(body, { partial: true });
+    if (!validation.ok) {
+      return NextResponse.json({ error: validation.error }, { status: 400 });
+    }
+
+    const internshipId = await getActiveInternshipId(userId);
+
+    if (!internshipId) {
+      return NextResponse.json({ error: "No internship found" }, { status: 404 });
+    }
+
+    const existing = await prisma.internshipApproval.findFirst({
+      where: { internshipId },
     });
 
-    if (!existingAppexA) {
-      return NextResponse.json({
-        error: "AppEx A not found. Please submit it first."
-      }, { status: 404 });
+    if (!existing) {
+      return NextResponse.json(
+        { error: "AppEx A not found. Create first." },
+        { status: 404 }
+      );
+    }
+    if (existing.status !== InternshipApprovalStatus.REJECTED) {
+      return NextResponse.json(
+        { error: "AppEx A can only be updated after rejection" },
+        { status: 403 }
+      );
     }
 
-    // Check if AppEx A is already approved/rejected
-    if (existingAppexA.status === 'approved') {
-      return NextResponse.json({
-        error: "Cannot update AppEx A that has been approved"
-      }, { status: 403 });
+    const effectiveStart = startDate ?? existing.startDate.toISOString();
+    const effectiveEnd = endDate ?? existing.endDate.toISOString();
+
+    const dateCheck = validateDateRange(effectiveStart, effectiveEnd);
+    if (!dateCheck.ok) {
+      return NextResponse.json({ error: dateCheck.error }, { status: 400 });
     }
+    const { start, end } = dateCheck;
 
-    // Validate dates if provided
-    if (startDate || endDate) {
-      const start = startDate ? new Date(startDate) : existingAppexA.startDate;
-      const end = endDate ? new Date(endDate) : existingAppexA.endDate;
-
-      if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-        return NextResponse.json({
-          error: "Invalid date format"
-        }, { status: 400 });
-      }
-
-      if (start >= end) {
-        return NextResponse.json({
-          error: "Start date must be before end date"
-        }, { status: 400 });
-      }
-    }
-
-    // Update AppEx A (by student)
     const updatedAppexA = await prisma.internshipApproval.update({
-      where: { studentId: userId },
+      where: { internshipId },
       data: {
-        organization: organization ?? existingAppexA.organization,
-        address: address ?? existingAppexA.address,
-        industrySector: industrySector ?? existingAppexA.industrySector,
-        contactName: contactName ?? existingAppexA.contactName,
-        contactDesignation: contactDesignation ?? existingAppexA.contactDesignation,
-        contactPhone: contactPhone ?? existingAppexA.contactPhone,
-        contactEmail: contactEmail ?? existingAppexA.contactEmail,
-        internshipNature: internshipNature ?? existingAppexA.internshipNature,
-        mode: mode ?? existingAppexA.mode,
-        numberOfInternship: numberOfInternship ?? existingAppexA.numberOfInternship,
-        internshipLocation: internshipLocation ?? existingAppexA.internshipLocation,
-        startDate: startDate ? new Date(startDate) : existingAppexA.startDate,
-        endDate: endDate ? new Date(endDate) : existingAppexA.endDate,
-        workingDays: workingDays ?? existingAppexA.workingDays,
-        workingHours: workingHours ?? existingAppexA.workingHours,
-        status: 'pending'
-      }
-    });
+        organization: organization ?? existing.organization,
+        address: address ?? existing.address,
+        industrySector: industrySector ?? existing.industrySector,
+        contactName: contactName ?? existing.contactName,
+        contactDesignation: contactDesignation ?? existing.contactDesignation,
+        contactPhone: contactPhone ?? existing.contactPhone,
+        contactEmail: contactEmail ?? existing.contactEmail,
+        internshipNature: internshipNature ?? existing.internshipNature,
+        internshipLocation: internshipLocation ?? existing.internshipLocation,
+        mode: mode ?? existing.mode,
+        numberOfInternship: numberOfInternship ?? existing.numberOfInternship,
 
-    const internshipType = resolveInternshipType(mode ?? existingAppexA.mode);
-    const linkedInternship = await prisma.internship.findFirst({
-      where: {
-        studentId: userId,
-        status: {
-          in: [InternshipStatus.PENDING, InternshipStatus.APPROVED],
-        },
+        startDate: start,
+        endDate: end,
+
+        workingDays: workingDays ?? existing.workingDays,
+        workingHours: workingHours ?? existing.workingHours,
+
+        status: InternshipApprovalStatus.PENDING,
       },
-      select: { id: true },
     });
 
-    if (linkedInternship) {
-      await prisma.internship.update({
-        where: { id: linkedInternship.id },
-        data: {
-          type: internshipType,
-          internshipApprovalId: updatedAppexA.id,
-          status: InternshipStatus.PENDING,
-        },
-      });
-    }
+    const internshipType = resolveInternshipType(mode ?? existing.mode);
+
+    await prisma.internship.update({
+      where: { id: internshipId },
+      data: {
+        type: internshipType,
+        status: InternshipStatus.PENDING,
+      },
+    });
 
     return NextResponse.json({
       message: "AppEx A updated successfully",
-      appexA: updatedAppexA
+      appexA: updatedAppexA,
     });
 
   } catch (error) {
-    console.error("Update AppEx A error:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

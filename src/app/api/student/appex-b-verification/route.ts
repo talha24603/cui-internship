@@ -1,34 +1,34 @@
 import { NextResponse } from "next/server";
 import prisma from "@/utils/prisma";
-import { InternshipStatus } from "@prisma/client";
+import { InternshipAssignmentStatus, InternshipStatus } from "@prisma/client";
 
 // Helper function to calculate overall status based on verification states
 function calculateStatus(
   facultyVerified: boolean | null,
   studentVerified: boolean | null
-): string {
+): InternshipAssignmentStatus {
   // If either party requested changes, status is CHANGES_REQUESTED
   if (facultyVerified === false || studentVerified === false) {
-    return "CHANGES_REQUESTED";
+    return InternshipAssignmentStatus.CHANGES_REQUESTED;
   }
 
   // If both approved, status is BOTH_VERIFIED
   if (facultyVerified === true && studentVerified === true) {
-    return "BOTH_VERIFIED";
+    return InternshipAssignmentStatus.BOTH_VERIFIED;
   }
 
   // If only faculty approved
   if (facultyVerified === true && studentVerified !== true) {
-    return "FACULTY_VERIFIED";
+    return InternshipAssignmentStatus.FACULTY_VERIFIED;
   }
 
   // If only student approved
   if (studentVerified === true && facultyVerified !== true) {
-    return "STUDENT_VERIFIED";
+    return InternshipAssignmentStatus.STUDENT_VERIFIED;
   }
 
   // Default to pending verification
-  return "PENDING_VERIFICATION";
+  return InternshipAssignmentStatus.PENDING_VERIFICATION;
 }
 
 // GET /api/student/appex-b-verification - Get student's AppEx B assignment for verification
@@ -51,9 +51,21 @@ export async function GET(req: Request) {
       );
     }
 
-    // Get the student's assignment
-    const assignment = await prisma.internshipAssignment.findUnique({
-      where: { studentId: userId },
+    const activeInternship = await prisma.internship.findFirst({
+      where: {
+        studentId: userId,
+        status: { in: ["PENDING", "APPROVED"] },
+      },
+      orderBy: { createdAt: "desc" },
+      select: { id: true },
+    });
+
+    // Get the student's assignment for active internship attempt (fallback to latest by student)
+    const assignmentWhere: any = activeInternship
+      ? { internshipId: activeInternship.id }
+      : { studentId: userId };
+    const assignment = await prisma.internshipAssignment.findFirst({
+      where: assignmentWhere,
       include: {
         faculty: {
           select: {
@@ -142,9 +154,21 @@ export async function PATCH(req: Request) {
       );
     }
 
-    // Find the student's assignment
-    const assignment = await prisma.internshipAssignment.findUnique({
-      where: { studentId: userId },
+    const activeInternship = await prisma.internship.findFirst({
+      where: {
+        studentId: userId,
+        status: { in: ["PENDING", "APPROVED"] },
+      },
+      orderBy: { createdAt: "desc" },
+      select: { id: true },
+    });
+
+    // Find the student's assignment for active internship attempt (fallback to latest by student)
+    const assignmentWhere: any = activeInternship
+      ? { internshipId: activeInternship.id }
+      : { studentId: userId };
+    const assignment = await prisma.internshipAssignment.findFirst({
+      where: assignmentWhere,
       include: {
         faculty: {
           select: {
@@ -186,7 +210,7 @@ export async function PATCH(req: Request) {
 
     // Update student verification fields
     const updatedAssignment = await prisma.internshipAssignment.update({
-      where: { studentId: userId },
+      where: { id: assignment.id },
       data: {
         studentVerified: verified,
         studentVerifiedAt: new Date(),
@@ -218,30 +242,33 @@ export async function PATCH(req: Request) {
 
     // Update the status field
     await prisma.internshipAssignment.update({
-      where: { studentId: userId },
+      where: { id: assignment.id },
       data: { status: newStatus },
     });
 
     // If AppEx B is fully verified by both parties, link supervisors to internship
-    if (newStatus === "BOTH_VERIFIED") {
+    if (newStatus === InternshipAssignmentStatus.BOTH_VERIFIED) {
       // Find the student's internship
-      const internship = await prisma.internship.findFirst({
-        where: {
-          studentId: userId,
-        },
-      });
+      const assignmentInternshipId = (updatedAssignment as any).internshipId as string | null | undefined;
+      const internship = assignmentInternshipId
+        ? await prisma.internship.findUnique({
+            where: { id: assignmentInternshipId },
+          })
+        : await prisma.internship.findFirst({
+            where: {
+              studentId: userId,
+            },
+          });
 
       if (internship) {
         // Prepare update data - only include fields that are present in AppEx B
         const internshipUpdateData: {
           facultyId?: string | null;
           siteId?: string | null;
-          internshipAssignmentId: string;
           startDate?: Date | null;
           endDate?: Date | null;
           status?: InternshipStatus;
         } = {
-          internshipAssignmentId: updatedAssignment.id,
           status: InternshipStatus.APPROVED,
         };
 

@@ -1,0 +1,25 @@
+-- CreateEnum
+CREATE TYPE "InternshipAssignmentStatus" AS ENUM (
+  'PENDING_VERIFICATION',
+  'FACULTY_VERIFIED',
+  'STUDENT_VERIFIED',
+  'BOTH_VERIFIED',
+  'CHANGES_REQUESTED'
+);
+
+-- Normalize legacy values
+UPDATE "InternshipAssignment"
+SET "status" = CASE
+  WHEN "status" IS NULL OR TRIM(COALESCE("status", '')) = '' THEN 'PENDING_VERIFICATION'
+  WHEN UPPER(TRIM("status")) = 'PENDING_VERIFICATION' THEN 'PENDING_VERIFICATION'
+  WHEN UPPER(TRIM("status")) = 'FACULTY_VERIFIED' THEN 'FACULTY_VERIFIED'
+  WHEN UPPER(TRIM("status")) = 'STUDENT_VERIFIED' THEN 'STUDENT_VERIFIED'
+  WHEN UPPER(TRIM("status")) = 'BOTH_VERIFIED' THEN 'BOTH_VERIFIED'
+  WHEN UPPER(TRIM("status")) = 'CHANGES_REQUESTED' THEN 'CHANGES_REQUESTED'
+  ELSE 'PENDING_VERIFICATION'
+END;
+
+ALTER TABLE "InternshipAssignment" ALTER COLUMN "status" DROP DEFAULT;
+ALTER TABLE "InternshipAssignment" ALTER COLUMN "status" TYPE "InternshipAssignmentStatus" USING "status"::"InternshipAssignmentStatus";
+ALTER TABLE "InternshipAssignment" ALTER COLUMN "status" SET DEFAULT 'PENDING_VERIFICATION'::"InternshipAssignmentStatus";
+ALTER TABLE "InternshipAssignment" ALTER COLUMN "status" SET NOT NULL;

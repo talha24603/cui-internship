@@ -65,16 +65,21 @@ export async function POST(req: Request) {
     }
 
     // Ensure student does not already have a pending/approved internship
-    const existing = await prisma.internship.findFirst({
+    // Allow multiple internships only if all previous ones are REJECTED
+    const existingInternships = await prisma.internship.findMany({
       where: {
         studentId: userId,
-        status: { in: [InternshipStatus.PENDING, InternshipStatus.APPROVED] },
       },
       select: { id: true, status: true }
     });
 
-    if (existing) {
-      return NextResponse.json({ error: "You already have an active internship request" }, { status: 409 });
+    // Check if there are any non-REJECTED internships
+    const hasActiveInternship = existingInternships.some(
+      internship => internship.status !== InternshipStatus.REJECTED
+    );
+
+    if (hasActiveInternship) {
+      return NextResponse.json({ error: "You already have an active internship request. You can only create new internships if all previous ones are rejected." }, { status: 409 });
     }
 
     const created = await prisma.internship.create({
