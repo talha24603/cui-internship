@@ -103,7 +103,9 @@ export default function FacultyProfilePage() {
           </FormField>
 
           <div className="sm:col-span-2">
-            <Button type="submit" disabled={loading}>{loading ? "Saving..." : "Save Profile"}</Button>
+            <Button type="submit" loading={loading} loadingText="Saving…">
+              Save Profile
+            </Button>
           </div>
         </form>
         {message ? <p className="mt-3 text-sm text-emerald-700">{message}</p> : null}

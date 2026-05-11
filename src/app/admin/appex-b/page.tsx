@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { authJson } from "@/utils/authClient";
 import { PageEmpty, PageError } from "@/components/shared/page-state";
+import type { AdminPagination } from "@/utils/adminPagination";
+import { AdminPaginationBar } from "@/components/admin/AdminPaginationBar";
 
 type AppexB = {
   id: string;
@@ -60,8 +62,13 @@ type CompanySearchItem = {
   industry?: string;
 };
 
+const LIST_PAGE_SIZE = 20;
+
 export default function AdminAppexBPage() {
   const [items, setItems] = useState<AppexB[]>([]);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState<AdminPagination | null>(null);
+  const [listLoading, setListLoading] = useState(true);
   const [status, setStatus] = useState("");
   const [approval, setApproval] = useState("");
   const [error, setError] = useState("");
@@ -69,6 +76,9 @@ export default function AdminAppexBPage() {
   const [selected, setSelected] = useState<AppexB | null>(null);
   const [selectedDetail, setSelectedDetail] = useState<AppexBDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [savingAction, setSavingAction] = useState<"save" | "approve" | "reject" | "reset" | null>(
+    null,
+  );
   const [companyName, setCompanyName] = useState<Record<string, string>>({});
   const [internshipRole, setInternshipRole] = useState<Record<string, string>>({});
   const [facultySupervisorNameDesig, setFacultySupervisorNameDesig] = useState<Record<string, string>>({});
@@ -191,17 +201,32 @@ export default function AdminAppexBPage() {
   }
 
   async function load() {
-    const params = new URLSearchParams();
-    if (status) params.set("status", status);
-    if (approval) params.set("adminApprovalStatus", approval);
-    const qs = params.toString();
-    const res = await authJson<{ data: AppexB[] }>(`/api/admin/appex-b${qs ? `?${qs}` : ""}`);
-    setItems(res.data ?? []);
+    setListLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (status) params.set("status", status);
+      if (approval) params.set("adminApprovalStatus", approval);
+      params.set("page", String(page));
+      params.set("pageSize", String(LIST_PAGE_SIZE));
+      const qs = params.toString();
+      const res = await authJson<{ data: AppexB[]; pagination?: AdminPagination }>(
+        `/api/admin/appex-b${qs ? `?${qs}` : ""}`,
+      );
+      setItems(res.data ?? []);
+      setPagination(res.pagination ?? null);
+    } catch (err) {
+      setItems([]);
+      setPagination(null);
+      throw err;
+    } finally {
+      setListLoading(false);
+    }
   }
 
   useEffect(() => {
+    setError("");
     load().catch((err) => setError(err instanceof Error ? err.message : "Unable to load AppEx B records"));
-  }, [status, approval]);
+  }, [status, approval, page]);
 
   async function openDetail(item: AppexB) {
     setSelected(item);
@@ -229,6 +254,7 @@ export default function AdminAppexBPage() {
       siteSupervisorNameDesig[item.id] ?? detail?.siteSupervisorNameDesig ?? undefined;
     const resolvedCompanyName = companyName[item.id] ?? detail?.companyName ?? item.companyName ?? undefined;
 
+    setSavingAction(adminApprovalAction ?? "save");
     try {
       setError("");
       setSuccess("");
@@ -241,6 +267,7 @@ export default function AdminAppexBPage() {
       await authJson<{ message: string }>("/api/admin/appex-b", {
         method: "PATCH",
         body: JSON.stringify({
+          id: item.id,
           studentId: item.student?.id,
           companyName: approvedCompanyName,
           internshipRole: internshipRole[item.id] ?? detail?.internshipRole ?? item.internshipRole ?? undefined,
@@ -269,13 +296,21 @@ export default function AdminAppexBPage() {
       setSuccess(`AppEx B ${actionLabel} successfully.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to update AppEx B");
+    } finally {
+      setSavingAction(null);
     }
   }
 
   return (
     <AdminShell title="AppEx B" description="Review assignment details and admin approval status.">
       <div className="mb-4 grid gap-3 sm:grid-cols-2">
-        <Select value={status} onChange={(e) => setStatus(e.target.value)}>
+        <Select
+          value={status}
+          onChange={(e) => {
+            setStatus(e.target.value);
+            setPage(1);
+          }}
+        >
           <option value="">All status</option>
           <option value="PENDING_VERIFICATION">PENDING_VERIFICATION</option>
           <option value="FACULTY_VERIFIED">FACULTY_VERIFIED</option>
@@ -283,7 +318,13 @@ export default function AdminAppexBPage() {
           <option value="BOTH_VERIFIED">BOTH_VERIFIED</option>
           <option value="CHANGES_REQUESTED">CHANGES_REQUESTED</option>
         </Select>
-        <Select value={approval} onChange={(e) => setApproval(e.target.value)}>
+        <Select
+          value={approval}
+          onChange={(e) => {
+            setApproval(e.target.value);
+            setPage(1);
+          }}
+        >
           <option value="">All admin approvals</option>
           <option value="PENDING">PENDING</option>
           <option value="APPROVED">APPROVED</option>
@@ -297,8 +338,14 @@ export default function AdminAppexBPage() {
         </p>
       ) : null}
 
+      <AdminPaginationBar pagination={pagination} onPageChange={setPage} className="mb-4" />
+
       <div className="space-y-4">
-        {items.map((item) => (
+        {listLoading ? (
+          <p className="text-sm text-slate-600 dark:text-slate-400">Loading records…</p>
+        ) : null}
+        {!listLoading
+          ? items.map((item) => (
           <Card key={item.id} className="cursor-pointer transition hover:shadow-md" onClick={() => openDetail(item)}>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
@@ -314,8 +361,9 @@ export default function AdminAppexBPage() {
             </p>
             <p className="mt-1 text-xs font-medium text-[#2541b2]">Click to view full details</p>
           </Card>
-        ))}
-        {items.length === 0 ? <PageEmpty message="No AppEx B records found." /> : null}
+        ))
+          : null}
+        {!listLoading && items.length === 0 ? <PageEmpty message="No AppEx B records found." /> : null}
       </div>
 
       {selected ? (
@@ -329,8 +377,10 @@ export default function AdminAppexBPage() {
                 {selected.student?.name ?? "Unknown"} ({selected.student?.regNo ?? "N/A"})
               </h3>
               <div className="flex gap-2">
-                <StatusBadge status={selected.status} />
-                <StatusBadge status={selected.adminApprovalStatus} />
+                <StatusBadge status={selectedDetail?.status ?? selected.status} />
+                <StatusBadge
+                  status={selectedDetail?.adminApprovalStatus ?? selected.adminApprovalStatus}
+                />
               </div>
             </div>
 
@@ -566,11 +616,44 @@ export default function AdminAppexBPage() {
                   </label>
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2">
-                  <Button size="sm" onClick={() => save(selected)}>Save Details</Button>
-                  <Button size="sm" onClick={() => save(selected, "approve")}>Approve</Button>
-                  <Button size="sm" variant="outline" onClick={() => save(selected, "reject")}>Reject</Button>
-                  <Button size="sm" variant="outline" onClick={() => save(selected, "reset")}>Reset</Button>
-                  <Button size="sm" variant="outline" onClick={() => setSelected(null)}>Close</Button>
+                  {/* <Button size="sm" onClick={() => save(selected)}>Save Details</Button> */}
+                  <Button
+                    size="sm"
+                    onClick={() => save(selected, "approve")}
+                    loading={savingAction === "approve"}
+                    loadingText="Approving…"
+                    disabled={savingAction !== null}
+                  >
+                    Approve & Submit
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => save(selected, "reject")}
+                    loading={savingAction === "reject"}
+                    loadingText="Rejecting…"
+                    disabled={savingAction !== null}
+                  >
+                    Reject
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => save(selected, "reset")}
+                    loading={savingAction === "reset"}
+                    loadingText="Resetting…"
+                    disabled={savingAction !== null}
+                  >
+                    Reset
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setSelected(null)}
+                    disabled={savingAction !== null}
+                  >
+                    Close
+                  </Button>
                 </div>
               </>
             ) : null}

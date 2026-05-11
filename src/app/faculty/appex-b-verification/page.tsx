@@ -41,6 +41,7 @@ export default function FacultyAppexBVerificationPage() {
   const [comments, setComments] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [pending, setPending] = useState<{ id: string; action: "approve" | "request_changes" } | null>(null);
 
   async function load() {
     const res = await authJson<{ data: Assignment[] }>(`/api/faculty/appex-b-verification?status=${status}`);
@@ -52,6 +53,7 @@ export default function FacultyAppexBVerificationPage() {
   }, [status]);
 
   async function action(assignmentId: string, act: "approve" | "request_changes") {
+    setPending({ id: assignmentId, action: act });
     try {
       setError("");
       setSuccess("");
@@ -63,6 +65,8 @@ export default function FacultyAppexBVerificationPage() {
       setSuccess(act === "approve" ? "AppEx B approved successfully." : "Changes request submitted successfully.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to process verification");
+    } finally {
+      setPending(null);
     }
   }
 
@@ -171,8 +175,23 @@ export default function FacultyAppexBVerificationPage() {
               onChange={(e) => setComments((prev) => ({ ...prev, [item.id]: e.target.value }))}
             />
             <div className="mt-2 flex gap-2">
-              <Button size="sm" onClick={() => action(item.id, "approve")}>Approve</Button>
-              <Button size="sm" variant="outline" onClick={() => action(item.id, "request_changes")}>
+              <Button
+                size="sm"
+                onClick={() => action(item.id, "approve")}
+                loading={pending?.id === item.id && pending.action === "approve"}
+                loadingText="Approving…"
+                disabled={pending !== null}
+              >
+                Approve
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => action(item.id, "request_changes")}
+                loading={pending?.id === item.id && pending.action === "request_changes"}
+                loadingText="Submitting…"
+                disabled={pending !== null}
+              >
                 Request Changes
               </Button>
             </div>

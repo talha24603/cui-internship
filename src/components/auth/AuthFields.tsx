@@ -48,10 +48,11 @@ export function SubmitButton({ loading, label, loadingLabel }: SubmitButtonProps
   return (
     <Button
       type="submit"
-      disabled={loading}
+      loading={loading}
+      loadingText={loadingLabel}
       className="h-11 w-full"
     >
-      {loading ? loadingLabel : label}
+      {label}
     </Button>
   );
 }

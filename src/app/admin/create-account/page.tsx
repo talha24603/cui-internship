@@ -21,6 +21,7 @@ export default function AdminCreateAccountPage() {
   const [companyResults, setCompanyResults] = useState<CompanyItem[]>([]);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     if (role !== "SITE_SUPERVISOR") {
@@ -66,6 +67,7 @@ export default function AdminCreateAccountPage() {
     event.preventDefault();
     setMessage("");
     setError("");
+    setCreating(true);
     try {
       let resolvedCompanyId = companyId;
       if (role === "SITE_SUPERVISOR") {
@@ -92,6 +94,8 @@ export default function AdminCreateAccountPage() {
       setRole("FACULTY");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to create account");
+    } finally {
+      setCreating(false);
     }
   }
 
@@ -147,7 +151,9 @@ export default function AdminCreateAccountPage() {
             </FormField>
           ) : null}
           <div className="sm:col-span-2">
-            <Button type="submit">Create Account</Button>
+            <Button type="submit" loading={creating} loadingText="Creating…">
+              Create Account
+            </Button>
           </div>
         </form>
         {message ? <p className="mt-3 text-sm text-emerald-700">{message}</p> : null}

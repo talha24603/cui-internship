@@ -70,8 +70,8 @@ export default function DashboardPage() {
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle />
-            <Button onClick={handleLogout} disabled={loading}>
-              {loading ? "Logging out..." : "Logout"}
+            <Button onClick={handleLogout} loading={loading} loadingText="Logging out…">
+              Logout
             </Button>
           </div>
         </header>

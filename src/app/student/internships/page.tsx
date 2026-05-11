@@ -179,12 +179,14 @@ export default function StudentInternshipsPage() {
               <p className="text-sm text-red-600 dark:text-red-400">{createError}</p>
             )}
 
-            <Button 
-              onClick={createInternship} 
-              disabled={createLoading || !internshipType}
+            <Button
+              onClick={createInternship}
+              disabled={!internshipType}
+              loading={createLoading}
+              loadingText="Creating…"
               className="w-full"
             >
-              {createLoading ? "Creating..." : "Create Internship"}
+              Create Internship
             </Button>
           </div>
         </Card>

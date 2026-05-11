@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/utils/prisma";
+import { buildAdminPagination, parseAdminPagination } from "@/utils/adminPagination";
 import { InternshipApprovalStatus, InternshipStatus, InternshipType } from "@prisma/client";
 
 function appexAAdminQueryStatus(raw: string | null): InternshipApprovalStatus | undefined {
@@ -43,6 +44,7 @@ export async function GET(req: Request) {
 
     const url = new URL(req.url);
     const filterStatus = appexAAdminQueryStatus(url.searchParams.get("status"));
+    const { skip, take, page, pageSize } = parseAdminPagination(url.searchParams);
 
     const where: { status?: InternshipApprovalStatus } = {};
 
@@ -50,45 +52,49 @@ export async function GET(req: Request) {
       where.status = filterStatus;
     }
 
-    
-
-    const appexASubmissions = await prisma.internshipApproval.findMany({
-      where,
-      select: {
-        id: true,
-        organization: true,
-        address: true,
-        industrySector: true,
-        contactName: true,
-        contactDesignation: true,
-        contactPhone: true,
-        contactEmail: true,
-        internshipNature: true,
-        internshipLocation: true,
-        mode: true,
-        numberOfInternship: true,
-        startDate: true,
-        endDate: true,
-        workingDays: true,
-        workingHours: true,
-        status: true,
-        student: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            regNo: true,
+    const [appexASubmissions, total] = await Promise.all([
+      prisma.internshipApproval.findMany({
+        where,
+        select: {
+          id: true,
+          organization: true,
+          address: true,
+          industrySector: true,
+          contactName: true,
+          contactDesignation: true,
+          contactPhone: true,
+          contactEmail: true,
+          internshipNature: true,
+          internshipLocation: true,
+          mode: true,
+          numberOfInternship: true,
+          startDate: true,
+          endDate: true,
+          workingDays: true,
+          workingHours: true,
+          status: true,
+          student: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              regNo: true,
+            },
           },
         },
-      },
-      orderBy: {
-        startDate: "desc",
-      },
-    });
+        orderBy: {
+          startDate: "desc",
+        },
+        skip,
+        take,
+      }),
+      prisma.internshipApproval.count({ where }),
+    ]);
 
     return NextResponse.json({
       message: "AppEx A submissions retrieved successfully",
       data: appexASubmissions,
+      pagination: buildAdminPagination(page, pageSize, total),
     });
   } catch (error) {
     console.error("Admin get AppEx A error:", error);

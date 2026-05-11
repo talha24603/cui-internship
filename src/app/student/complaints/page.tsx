@@ -28,6 +28,7 @@ export default function ComplaintsPage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [initialLoading, setInitialLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
   async function load() {
     const result = await authJson<{ complaints: Complaint[] }>("/api/student/complaints");
@@ -43,6 +44,7 @@ export default function ComplaintsPage() {
     event.preventDefault();
     setMessage("");
     setError("");
+    setSubmitting(true);
     try {
       const res = await authJson<{ message: string }>("/api/student/complaints", {
         method: "POST",
@@ -55,6 +57,8 @@ export default function ComplaintsPage() {
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to submit complaint");
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -85,7 +89,9 @@ export default function ComplaintsPage() {
                 className="min-h-32"
               />
             </FormField>
-            <Button>Submit</Button>
+            <Button type="submit" loading={submitting} loadingText="Submitting…">
+              Submit
+            </Button>
           </form>
           {message ? <p className="mt-3 text-sm text-emerald-700">{message}</p> : null}
           {error ? <p className="mt-3 text-sm text-rose-700">{error}</p> : null}

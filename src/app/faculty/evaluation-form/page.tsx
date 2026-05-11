@@ -30,6 +30,7 @@ export default function FacultyEvaluationFormPage() {
   );
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     authJson<{ data: Internship[] }>("/api/faculty/internships?status=approved")
@@ -44,6 +45,7 @@ export default function FacultyEvaluationFormPage() {
     event.preventDefault();
     setMessage("");
     setError("");
+    setSubmitting(true);
     try {
       const res = await authJson<{ message: string }>("/api/faculty/evaluation-form", {
         method: "POST",
@@ -52,6 +54,8 @@ export default function FacultyEvaluationFormPage() {
       setMessage(res.message);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to submit evaluation form");
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -89,7 +93,9 @@ export default function FacultyEvaluationFormPage() {
             <Textarea value={comments} onChange={(e) => setComments(e.target.value)} />
           </FormField>
 
-          <Button type="submit">Submit Evaluation Form</Button>
+          <Button type="submit" loading={submitting} loadingText="Submitting…">
+            Submit Evaluation Form
+          </Button>
         </form>
         {message ? <p className="mt-3 text-sm text-emerald-700">{message}</p> : null}
         {error ? <p className="mt-3 text-sm text-rose-700">{error}</p> : null}

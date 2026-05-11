@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { InternshipAssignmentStatus } from "@prisma/client";
 import prisma from "@/utils/prisma";
+import { buildAdminPagination, parseAdminPagination } from "@/utils/adminPagination";
 
 function normalizeDateInput(value: unknown): string | null | undefined {
   if (value === undefined) return undefined;
@@ -117,56 +118,64 @@ export async function GET(req: Request) {
       where.adminApprovalStatus = adminApprovalStatus;
     }
 
-    const internshipAssignments = await prisma.internshipAssignment.findMany({
-      where,
-      select: {
-        id: true,
-        name: true,
-        degreeProgram: true,
-        email: true,
-        semester: true,
-        contactNo: true,
-        preferredField: true,
-        agreementAccepted: true,
-        status: true,
-        adminApprovalStatus: true,
-        facultyVerified: true,
-        facultyVerifiedAt: true,
-        facultyVerificationComments: true,
-        studentVerified: true,
-        studentVerifiedAt: true,
-        studentVerificationComments: true,
-        student: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            regNo: true,
+    const { skip, take, page, pageSize } = parseAdminPagination(url.searchParams);
+
+    const [internshipAssignments, total] = await Promise.all([
+      prisma.internshipAssignment.findMany({
+        where,
+        select: {
+          id: true,
+          name: true,
+          degreeProgram: true,
+          email: true,
+          semester: true,
+          contactNo: true,
+          preferredField: true,
+          agreementAccepted: true,
+          status: true,
+          adminApprovalStatus: true,
+          facultyVerified: true,
+          facultyVerifiedAt: true,
+          facultyVerificationComments: true,
+          studentVerified: true,
+          studentVerifiedAt: true,
+          studentVerificationComments: true,
+          student: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              regNo: true,
+            },
+          },
+          faculty: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          site: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
           },
         },
-        faculty: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
+        orderBy: {
+          id: "desc",
         },
-        site: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-      },
-      orderBy: {
-        id: "desc",
-      },
-    });
+        skip,
+        take,
+      }),
+      prisma.internshipAssignment.count({ where }),
+    ]);
 
     return NextResponse.json({
       message: "AppEx B submissions retrieved successfully",
       data: internshipAssignments,
+      pagination: buildAdminPagination(page, pageSize, total),
     });
   } catch (error) {
     console.error("Admin get AppEx B error:", error);
@@ -191,6 +200,7 @@ export async function PATCH(req: Request) {
 
     const body = await req.json();
     const {
+      id: assignmentId,
       studentId,
       companyName,
       internshipRole,
@@ -204,9 +214,9 @@ export async function PATCH(req: Request) {
       adminApprovalAction,
     } = body;
 
-    if (!studentId) {
+    if (!assignmentId && !studentId) {
       return NextResponse.json(
-        { error: "studentId is required" },
+        { error: "Either id (assignment id) or studentId is required" },
         { status: 400 }
       );
     }
@@ -314,34 +324,57 @@ export async function PATCH(req: Request) {
       );
     }
 
-    const existingAssignment = await prisma.internshipAssignment.findFirst({
-      where: { studentId },
-      orderBy: { id: "desc" },
-      select: {
-        id: true,
-        companyName: true,
-        internshipRole: true,
-        facultySupervisorNameDesig: true,
-        siteSupervisorNameDesig: true,
-        durationWeeks: true,
-        startDate: true,
-        endDate: true,
-        facultyId: true,
-        siteId: true,
-        status: true,
-        adminApprovalStatus: true,
-      },
-    });
+    const existingAssignment = assignmentId
+      ? await prisma.internshipAssignment.findUnique({
+          where: { id: assignmentId },
+          select: {
+            id: true,
+            companyName: true,
+            internshipRole: true,
+            facultySupervisorNameDesig: true,
+            siteSupervisorNameDesig: true,
+            durationWeeks: true,
+            startDate: true,
+            endDate: true,
+            facultyId: true,
+            siteId: true,
+            status: true,
+            adminApprovalStatus: true,
+          },
+        })
+      : await prisma.internshipAssignment.findFirst({
+          where: { studentId },
+          orderBy: { id: "desc" },
+          select: {
+            id: true,
+            companyName: true,
+            internshipRole: true,
+            facultySupervisorNameDesig: true,
+            siteSupervisorNameDesig: true,
+            durationWeeks: true,
+            startDate: true,
+            endDate: true,
+            facultyId: true,
+            siteId: true,
+            status: true,
+            adminApprovalStatus: true,
+          },
+        });
 
     if (!existingAssignment) {
       return NextResponse.json(
-        { error: "AppEx B (Internship Assignment) not found for student" },
+        { error: "AppEx B (Internship Assignment) not found" },
         { status: 404 }
       );
     }
 
     // Check if significant data changes are being made
-    // If admin is updating key fields, reset verifications
+    // If admin is updating key fields, reset verifications.
+    // IMPORTANT: only count a field as "changed" when its new value actually
+    // differs from the stored value. The admin UI pre-fills these fields with
+    // existing values and always submits them, so a plain `!== undefined` check
+    // would treat an unchanged approval click as a significant change and would
+    // incorrectly reset the workflow status and verifications.
     const significantFields = [
       "companyName",
       "internshipRole",
@@ -353,9 +386,25 @@ export async function PATCH(req: Request) {
       "facultyId",
       "siteId",
     ];
-    const hasSignificantChanges = significantFields.some(
-      (field) => updateData[field] !== undefined
-    );
+
+    const valuesDiffer = (next: unknown, current: unknown): boolean => {
+      if (next === current) return false;
+      if (next == null && current == null) return false;
+      if (next == null || current == null) return true;
+      if (current instanceof Date) {
+        const currentIso = current.toISOString();
+        if (typeof next === "string") return currentIso !== next;
+        if (next instanceof Date) return current.getTime() !== next.getTime();
+        return true;
+      }
+      return next !== current;
+    };
+
+    const existingAssignmentRecord = existingAssignment as unknown as Record<string, unknown>;
+    const hasSignificantChanges = significantFields.some((field) => {
+      if (updateData[field] === undefined) return false;
+      return valuesDiffer(updateData[field], existingAssignmentRecord[field]);
+    });
 
     // If significant changes, reset verification fields and set status to PENDING_VERIFICATION
     if (hasSignificantChanges) {

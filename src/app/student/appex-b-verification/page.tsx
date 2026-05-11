@@ -15,11 +15,31 @@ type Assignment = {
   studentVerificationComments?: string | null;
 };
 
+function InlineSpinner() {
+  return (
+    <svg
+      className="h-4 w-4 animate-spin"
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+      <path
+        className="opacity-75"
+        fill="currentColor"
+        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+      />
+    </svg>
+  );
+}
+
 export default function AppexBVerificationPage() {
   const [assignment, setAssignment] = useState<Assignment | null>(null);
   const [comments, setComments] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [pendingAction, setPendingAction] = useState<"approve" | "request_changes" | null>(null);
 
   async function load() {
     const res = await authJson<{ data: Assignment }>("/api/student/appex-b-verification");
@@ -33,6 +53,7 @@ export default function AppexBVerificationPage() {
   async function submit(action: "approve" | "request_changes") {
     setMessage("");
     setError("");
+    setPendingAction(action);
     try {
       const res = await authJson<{ message: string }>("/api/student/appex-b-verification", {
         method: "PATCH",
@@ -42,6 +63,8 @@ export default function AppexBVerificationPage() {
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to submit verification");
+    } finally {
+      setPendingAction(null);
     }
   }
 
@@ -64,20 +87,41 @@ export default function AppexBVerificationPage() {
               value={comments}
               onChange={(e) => setComments(e.target.value)}
               placeholder="Add optional comments"
-              className="h-28 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              disabled={pendingAction !== null}
+              className="h-28 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
             />
             <div className="flex flex-wrap gap-2">
               <button
+                type="button"
                 onClick={() => submit("approve")}
-                className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white"
+                disabled={pendingAction !== null}
+                aria-busy={pendingAction === "approve" || undefined}
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Approve
+                {pendingAction === "approve" ? (
+                  <>
+                    <InlineSpinner />
+                    Approving…
+                  </>
+                ) : (
+                  "Approve"
+                )}
               </button>
               <button
+                type="button"
                 onClick={() => submit("request_changes")}
-                className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white"
+                disabled={pendingAction !== null}
+                aria-busy={pendingAction === "request_changes" || undefined}
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Request Changes
+                {pendingAction === "request_changes" ? (
+                  <>
+                    <InlineSpinner />
+                    Submitting…
+                  </>
+                ) : (
+                  "Request Changes"
+                )}
               </button>
             </div>
           </div>

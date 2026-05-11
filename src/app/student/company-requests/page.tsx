@@ -37,6 +37,7 @@ export default function CompanyRequestsPage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [initialLoading, setInitialLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
   async function load() {
     const response = await authJson<{ requests: CompanyRequest[] }>("/api/student/company-request-status");
@@ -52,6 +53,7 @@ export default function CompanyRequestsPage() {
     event.preventDefault();
     setMessage("");
     setError("");
+    setSubmitting(true);
     try {
       const res = await authJson<{ message: string }>("/api/student/request-to-add-company", {
         method: "POST",
@@ -62,6 +64,8 @@ export default function CompanyRequestsPage() {
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to submit request");
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -94,7 +98,9 @@ export default function CompanyRequestsPage() {
               </label>
             ))}
             <div className="sm:col-span-2">
-              <Button>Submit Request</Button>
+              <Button type="submit" loading={submitting} loadingText="Submitting…">
+                Submit Request
+              </Button>
             </div>
           </form>
           {message ? <p className="mt-3 text-sm text-emerald-700">{message}</p> : null}

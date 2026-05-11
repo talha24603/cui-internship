@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/utils/prisma";
+import { buildAdminPagination, parseAdminPagination } from "@/utils/adminPagination";
 
 // GET /api/admin/appex-c - Get all AppEx C submissions (Admin only)
 // GET /api/admin/appex-c?id=xxx - Get a specific AppEx C submission by ID (Admin only)
@@ -49,32 +50,40 @@ export async function GET(req: Request) {
       });
     }
 
-    const proposals = await prisma.internshipProposal.findMany({
-      select: {
-        id: true,
-        organizationOverview: true,
-        roleDescription: true,
-        keyActivities: true,
-        toolsTechnologies: true,
-        expectedDeliverables: true,
-        submittedDate: true,
-        student: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            regNo: true,
+    const { skip, take, page, pageSize } = parseAdminPagination(url.searchParams);
+
+    const [proposals, total] = await Promise.all([
+      prisma.internshipProposal.findMany({
+        select: {
+          id: true,
+          organizationOverview: true,
+          roleDescription: true,
+          keyActivities: true,
+          toolsTechnologies: true,
+          expectedDeliverables: true,
+          submittedDate: true,
+          student: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              regNo: true,
+            },
           },
         },
-      },
-      orderBy: {
-        submittedDate: "desc",
-      },
-    });
+        orderBy: {
+          submittedDate: "desc",
+        },
+        skip,
+        take,
+      }),
+      prisma.internshipProposal.count(),
+    ]);
 
     return NextResponse.json({
       message: "AppEx C submissions retrieved successfully",
       data: proposals,
+      pagination: buildAdminPagination(page, pageSize, total),
     });
   } catch (error) {
     console.error("Admin get AppEx C error:", error);

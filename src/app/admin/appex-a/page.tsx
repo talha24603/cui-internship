@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { authJson } from "@/utils/authClient";
 import { PageEmpty, PageError } from "@/components/shared/page-state";
+import type { AdminPagination } from "@/utils/adminPagination";
+import { AdminPaginationBar } from "@/components/admin/AdminPaginationBar";
 
 type AppexA = {
   id: string;
@@ -30,24 +32,37 @@ type AppexA = {
   student?: { name: string; regNo?: string | null; email: string } | null;
 };
 
+const PAGE_SIZE = 20;
+
 export default function AdminAppexAPage() {
   const [status, setStatus] = useState("PENDING");
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState<AdminPagination | null>(null);
   const [items, setItems] = useState<AppexA[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [selected, setSelected] = useState<AppexA | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [pendingAction, setPendingAction] = useState<"approved" | "rejected" | null>(null);
 
   async function load() {
     setLoading(true);
     setError("");
     try {
-      const query = status === "all" ? "" : `?status=${status.toLowerCase()}`;
-      const res = await authJson<{ data: AppexA[] }>(`/api/admin/appex-a${query}`);
+      const params = new URLSearchParams();
+      if (status !== "all") params.set("status", status.toLowerCase());
+      params.set("page", String(page));
+      params.set("pageSize", String(PAGE_SIZE));
+      const qs = params.toString();
+      const res = await authJson<{ data: AppexA[]; pagination?: AdminPagination }>(
+        `/api/admin/appex-a${qs ? `?${qs}` : ""}`,
+      );
       setItems(res.data ?? []);
+      setPagination(res.pagination ?? null);
     } catch (err) {
       setItems([]);
+      setPagination(null);
       setError(err instanceof Error ? err.message : "Unable to load AppEx A submissions");
     } finally {
       setLoading(false);
@@ -57,12 +72,13 @@ export default function AdminAppexAPage() {
   useEffect(() => {
     setSuccess("");
     void load();
-  }, [status]);
+  }, [status, page]);
 
   async function update(appexAId: string, nextStatus: "approved" | "rejected") {
     setError("");
     setSuccess("");
     setActionLoading(true);
+    setPendingAction(nextStatus);
     try {
       const res = await authJson<{ message: string }>("/api/admin/appex-a", {
         method: "PATCH",
@@ -74,13 +90,20 @@ export default function AdminAppexAPage() {
       setError(err instanceof Error ? err.message : "Unable to update AppEx A");
     } finally {
       setActionLoading(false);
+      setPendingAction(null);
     }
   }
 
   return (
     <AdminShell title="AppEx A" description="Approve or reject AppEx A forms and sync internship dates.">
       <div className="mb-4 max-w-xs">
-        <Select value={status} onChange={(e) => setStatus(e.target.value)}>
+        <Select
+          value={status}
+          onChange={(e) => {
+            setStatus(e.target.value);
+            setPage(1);
+          }}
+        >
           <option value="PENDING">Pending</option>
           <option value="APPROVED">Approved</option>
           <option value="REJECTED">Rejected</option>
@@ -93,6 +116,7 @@ export default function AdminAppexAPage() {
           {success}
         </p>
       ) : null}
+      <AdminPaginationBar pagination={pagination} onPageChange={setPage} className="mb-4" />
       <div className="space-y-4">
         {loading ? (
           <>
@@ -157,22 +181,26 @@ export default function AdminAppexAPage() {
                 <>
                   <Button
                     size="sm"
+                    loading={pendingAction === "approved"}
+                    loadingText="Approving…"
                     disabled={actionLoading}
                     onClick={() =>
                       update(selected.id, "approved").then(() => setSelected(null))
                     }
                   >
-                    {actionLoading ? "Saving…" : "Approve"}
+                    Approve
                   </Button>
                   <Button
                     size="sm"
                     variant="outline"
+                    loading={pendingAction === "rejected"}
+                    loadingText="Rejecting…"
                     disabled={actionLoading}
                     onClick={() =>
                       update(selected.id, "rejected").then(() => setSelected(null))
                     }
                   >
-                    {actionLoading ? "Saving…" : "Reject"}
+                    Reject
                   </Button>
                 </>
               ) : null}

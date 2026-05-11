@@ -265,8 +265,8 @@ export default function AppexBPage() {
           </div>
 
           <div className="sm:col-span-2">
-            <Button type="submit" disabled={loading}>
-              {loading ? "Saving..." : "Save AppEx B"}
+            <Button type="submit" loading={loading} loadingText="Saving…">
+              Save AppEx B
             </Button>
           </div>
         </form>

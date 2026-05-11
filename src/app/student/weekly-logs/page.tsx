@@ -34,6 +34,7 @@ export default function WeeklyLogsPage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [initialLoading, setInitialLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
   async function load() {
     const res = await authJson<WeeklyPayload>("/api/student/weekly-logs");
@@ -49,6 +50,7 @@ export default function WeeklyLogsPage() {
     event.preventDefault();
     setMessage("");
     setError("");
+    setSubmitting(true);
     try {
       const res = await authJson<{ message: string }>("/api/student/weekly-logs", {
         method: "POST",
@@ -62,6 +64,8 @@ export default function WeeklyLogsPage() {
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to submit log");
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -114,7 +118,9 @@ export default function WeeklyLogsPage() {
                 className="min-h-24"
               />
             </FormField>
-            <Button>Submit Log</Button>
+            <Button type="submit" loading={submitting} loadingText="Submitting…">
+              Submit Log
+            </Button>
           </form>
           {message ? <p className="mt-3 text-sm text-emerald-700">{message}</p> : null}
           {error ? <p className="mt-3 text-sm text-rose-700">{error}</p> : null}

@@ -357,8 +357,12 @@ export default function AppexAPage() {
           ))}
 
           <div className="sm:col-span-2">
-            <Button type="submit" disabled={loading}>
-              {loading ? "Saving..." : existing ? "Update AppEx A" : "Submit AppEx A"}
+            <Button
+              type="submit"
+              loading={loading}
+              loadingText={existing ? "Updating…" : "Submitting…"}
+            >
+              {existing ? "Update AppEx A" : "Submit AppEx A"}
             </Button>
           </div>
         </form>

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/utils/prisma";
+import { buildAdminPagination, parseAdminPagination } from "@/utils/adminPagination";
 
 function validateUser(req: Request) {
   const userId = req.headers.get("x-user-id");
@@ -21,7 +22,7 @@ function validateUser(req: Request) {
 
 /**
  * GET /api/admin/announcements
- * Returns all announcements (pinned first, newest first).
+ * Query: page, pageSize (or limit). Pinned first, then newest.
  */
 export async function GET(req: Request) {
   const auth = validateUser(req);
@@ -30,18 +31,26 @@ export async function GET(req: Request) {
   }
 
   try {
-    const announcements = await prisma.announcement.findMany({
-      orderBy: [{ pinned: "desc" }, { createdAt: "desc" }],
-      include: {
-        createdBy: {
-          select: { id: true, name: true, email: true, role: true },
+    const { skip, take, page, pageSize } = parseAdminPagination(new URL(req.url).searchParams);
+
+    const [announcements, total] = await Promise.all([
+      prisma.announcement.findMany({
+        orderBy: [{ pinned: "desc" }, { createdAt: "desc" }],
+        include: {
+          createdBy: {
+            select: { id: true, name: true, email: true, role: true },
+          },
         },
-      },
-    });
+        skip,
+        take,
+      }),
+      prisma.announcement.count(),
+    ]);
 
     return NextResponse.json({
       message: "Announcements retrieved successfully",
       data: announcements,
+      pagination: buildAdminPagination(page, pageSize, total),
     });
   } catch (error) {
     console.error("Get announcements error:", error);

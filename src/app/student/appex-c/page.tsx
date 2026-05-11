@@ -55,8 +55,8 @@ export default function AppexCPage() {
             </FormField>
           ))}
 
-          <Button type="submit" disabled={loading}>
-            {loading ? "Saving..." : "Save AppEx C"}
+          <Button type="submit" loading={loading} loadingText="Saving…">
+            Save AppEx C
           </Button>
         </form>
         {message ? <p className="mt-3 text-sm text-emerald-700">{message}</p> : null}

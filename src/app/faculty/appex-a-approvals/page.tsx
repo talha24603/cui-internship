@@ -24,7 +24,7 @@ export default function FacultyAppexAApprovalsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [actionId, setActionId] = useState<string | null>(null);
+  const [pending, setPending] = useState<{ id: string; action: "approved" | "rejected" } | null>(null);
 
   async function load() {
     setLoading(true);
@@ -49,7 +49,7 @@ export default function FacultyAppexAApprovalsPage() {
   async function takeAction(appexAId: string, nextStatus: "approved" | "rejected") {
     setError("");
     setSuccess("");
-    setActionId(appexAId);
+    setPending({ id: appexAId, action: nextStatus });
     try {
       const res = await authJson<{ message: string }>("/api/faculty/appex-a-approval", {
         method: "PATCH",
@@ -60,7 +60,7 @@ export default function FacultyAppexAApprovalsPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to update status");
     } finally {
-      setActionId(null);
+      setPending(null);
     }
   }
 
@@ -90,7 +90,8 @@ export default function FacultyAppexAApprovalsPage() {
         ) : (
           <>
             {items.map((item) => {
-              const busy = actionId === item.id;
+              const busy = pending?.id === item.id;
+              const anyPending = pending !== null;
               return (
                 <Card key={item.id}>
                   <div className="flex items-center justify-between">
@@ -111,11 +112,24 @@ export default function FacultyAppexAApprovalsPage() {
                   />
                   {item.status === "PENDING" ? (
                     <div className="mt-2 flex gap-2">
-                      <Button size="sm" disabled={busy} onClick={() => takeAction(item.id, "approved")}>
-                        {busy ? "Saving…" : "Approve"}
+                      <Button
+                        size="sm"
+                        onClick={() => takeAction(item.id, "approved")}
+                        loading={busy && pending?.action === "approved"}
+                        loadingText="Approving…"
+                        disabled={anyPending}
+                      >
+                        Approve
                       </Button>
-                      <Button size="sm" variant="outline" disabled={busy} onClick={() => takeAction(item.id, "rejected")}>
-                        {busy ? "Saving…" : "Reject"}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => takeAction(item.id, "rejected")}
+                        loading={busy && pending?.action === "rejected"}
+                        loadingText="Rejecting…"
+                        disabled={anyPending}
+                      >
+                        Reject
                       </Button>
                     </div>
                   ) : null}

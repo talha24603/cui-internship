@@ -22,6 +22,7 @@ export default function FacultyComplaintsPage() {
   const [items, setItems] = useState<Complaint[]>([]);
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
+  const [pendingAction, setPendingAction] = useState<{ id: string; status: string } | null>(null);
 
   async function load() {
     const query = status === "all" ? "" : `?status=${status}`;
@@ -34,6 +35,7 @@ export default function FacultyComplaintsPage() {
   }, [status]);
 
   async function updateComplaint(id: string, nextStatus: string) {
+    setPendingAction({ id, status: nextStatus });
     try {
       await authJson<{ message: string }>(`/api/faculty/complaints/${id}`, {
         method: "PATCH",
@@ -42,6 +44,8 @@ export default function FacultyComplaintsPage() {
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to update complaint");
+    } finally {
+      setPendingAction(null);
     }
   }
 
@@ -74,9 +78,32 @@ export default function FacultyComplaintsPage() {
               onChange={(e) => setNotes((prev) => ({ ...prev, [item.id]: e.target.value }))}
             />
             <div className="mt-2 flex flex-wrap gap-2">
-              <Button size="sm" onClick={() => updateComplaint(item.id, "IN_REVIEW")}>Mark In Review</Button>
-              <Button size="sm" onClick={() => updateComplaint(item.id, "RESOLVED")}>Resolve</Button>
-              <Button size="sm" variant="outline" onClick={() => updateComplaint(item.id, "DISMISSED")}>
+              <Button
+                size="sm"
+                onClick={() => updateComplaint(item.id, "IN_REVIEW")}
+                loading={pendingAction?.id === item.id && pendingAction.status === "IN_REVIEW"}
+                loadingText="Updating…"
+                disabled={pendingAction !== null}
+              >
+                Mark In Review
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => updateComplaint(item.id, "RESOLVED")}
+                loading={pendingAction?.id === item.id && pendingAction.status === "RESOLVED"}
+                loadingText="Resolving…"
+                disabled={pendingAction !== null}
+              >
+                Resolve
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => updateComplaint(item.id, "DISMISSED")}
+                loading={pendingAction?.id === item.id && pendingAction.status === "DISMISSED"}
+                loadingText="Dismissing…"
+                disabled={pendingAction !== null}
+              >
                 Dismiss
               </Button>
             </div>

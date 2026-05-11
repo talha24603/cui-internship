@@ -45,6 +45,7 @@ export default function SiteEvaluationsPage() {
   const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const [criteria, setCriteria] = useState<Record<string, number>>(
     Object.fromEntries(criteriaFields.map((f) => [f.key, 1]))
   );
@@ -82,6 +83,7 @@ export default function SiteEvaluationsPage() {
     event.preventDefault();
     setError("");
     setMessage("");
+    setSubmitting(true);
     try {
       const totalMarks = Object.values(criteria).reduce((sum, v) => sum + Number(v || 0), 0);
       const res = await authJson<{ message: string }>("/api/site/evaluations", {
@@ -98,6 +100,8 @@ export default function SiteEvaluationsPage() {
       await loadEvaluations(internshipId, type);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to submit evaluation");
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -137,7 +141,9 @@ export default function SiteEvaluationsPage() {
           </div>
 
           <Textarea value={comments} onChange={(e) => setComments(e.target.value)} placeholder="Comments (optional)" />
-          <Button type="submit">Submit Evaluation</Button>
+          <Button type="submit" loading={submitting} loadingText="Submitting…">
+            Submit Evaluation
+          </Button>
         </form>
         {message ? <p className="mt-3 text-sm text-emerald-700">{message}</p> : null}
         {error ? <PageError message={error} className="mt-3" /> : null}

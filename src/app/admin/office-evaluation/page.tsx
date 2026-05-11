@@ -8,8 +8,26 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { authJson } from "@/utils/authClient";
+import type { AdminPagination } from "@/utils/adminPagination";
 
 type Internship = { id: string; student?: { name: string; regNo?: string | null } | null };
+
+async function fetchAllInternships(): Promise<Internship[]> {
+  const pageSize = 100;
+  const first = await authJson<{ data: Internship[]; pagination?: AdminPagination }>(
+    `/api/admin/internships?page=1&pageSize=${pageSize}`,
+  );
+  let all: Internship[] = [...(first.data ?? [])];
+  const totalPages = first.pagination?.totalPages ?? 1;
+  for (let p = 2; p <= totalPages; p++) {
+    const next = await authJson<{ data: Internship[] }>(
+      `/api/admin/internships?page=${p}&pageSize=${pageSize}`,
+    );
+    all = all.concat(next.data ?? []);
+  }
+  return all;
+}
+
 const criteriaFields = [
   { key: "internshipReport", label: "Internship Report" },
   { key: "portfolioEvidence", label: "Portfolio Evidence" },
@@ -26,12 +44,13 @@ export default function AdminOfficeEvaluationPage() {
   const [comments, setComments] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    authJson<{ data: Internship[] }>("/api/admin/internships")
-      .then((res) => {
-        setInternships(res.data ?? []);
-        if (res.data?.[0]?.id) setInternshipId(res.data[0].id);
+    fetchAllInternships()
+      .then((all) => {
+        setInternships(all);
+        setInternshipId((prev) => prev || all[0]?.id || "");
       })
       .catch((err) => setError(err instanceof Error ? err.message : "Unable to load internships"));
   }, []);
@@ -40,6 +59,7 @@ export default function AdminOfficeEvaluationPage() {
     event.preventDefault();
     setMessage("");
     setError("");
+    setSubmitting(true);
     try {
       const res = await authJson<{ message: string }>("/api/admin/office-evaluation", {
         method: "POST",
@@ -48,6 +68,8 @@ export default function AdminOfficeEvaluationPage() {
       setMessage(res.message);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to submit office evaluation");
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -81,7 +103,9 @@ export default function AdminOfficeEvaluationPage() {
           </div>
 
           <Textarea value={comments} onChange={(e) => setComments(e.target.value)} placeholder="Comments (optional)" />
-          <Button type="submit">Submit Office Evaluation</Button>
+          <Button type="submit" loading={submitting} loadingText="Submitting…">
+            Submit Office Evaluation
+          </Button>
         </form>
         {message ? <p className="mt-3 text-sm text-emerald-700">{message}</p> : null}
         {error ? <p className="mt-3 text-sm text-rose-700">{error}</p> : null}

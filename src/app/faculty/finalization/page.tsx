@@ -24,6 +24,7 @@ export default function FacultyFinalizationPage() {
   const [officeMarks, setOfficeMarks] = useState("0");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [finalizing, setFinalizing] = useState(false);
 
   useEffect(() => {
     authJson<{ data: Internship[] }>("/api/faculty/internships")
@@ -49,6 +50,7 @@ export default function FacultyFinalizationPage() {
   async function finalize() {
     setMessage("");
     setError("");
+    setFinalizing(true);
     try {
       const res = await authJson<{ message: string }>("/api/faculty/finalization", {
         method: "POST",
@@ -64,6 +66,8 @@ export default function FacultyFinalizationPage() {
       setData(refreshed.data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to finalize result");
+    } finally {
+      setFinalizing(false);
     }
   }
 
@@ -87,7 +91,14 @@ export default function FacultyFinalizationPage() {
           <div><p className="mb-1 text-sm">Site</p><Input type="number" min={0} max={40} value={siteMarks} onChange={(e) => setSiteMarks(e.target.value)} /></div>
           <div><p className="mb-1 text-sm">Office</p><Input type="number" min={0} max={20} value={officeMarks} onChange={(e) => setOfficeMarks(e.target.value)} /></div>
         </div>
-        <Button className="mt-3" onClick={finalize}>Finalize Result</Button>
+        <Button
+          className="mt-3"
+          onClick={finalize}
+          loading={finalizing}
+          loadingText="Finalizing…"
+        >
+          Finalize Result
+        </Button>
 
         {message ? <p className="mt-3 text-sm text-emerald-700">{message}</p> : null}
         {error ? <p className="mt-3 text-sm text-rose-700">{error}</p> : null}

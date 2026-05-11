@@ -94,8 +94,8 @@ export default function AdminAddCompanyPage() {
             />
           </FormField>
           <div className="sm:col-span-2">
-            <Button type="submit" disabled={submitting}>
-              {submitting ? "Saving..." : "Add company"}
+            <Button type="submit" loading={submitting} loadingText="Saving…">
+              Add company
             </Button>
           </div>
         </form>

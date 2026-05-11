@@ -98,8 +98,8 @@ export default function InternshipReportPage() {
             <FormField label="Report PDF" hint="Only PDF file is accepted.">
               <Input type="file" accept="application/pdf" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
             </FormField>
-            <Button type="submit" disabled={loading}>
-              {loading ? "Uploading..." : "Upload Final Report"}
+            <Button type="submit" loading={loading} loadingText="Uploading…">
+              Upload Final Report
             </Button>
           </form>
           {message ? <p className="mt-3 text-sm text-emerald-700">{message}</p> : null}

@@ -24,6 +24,7 @@ export default function FacultyEvaluationSummaryPage() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     authJson<{ data: Internship[] }>("/api/faculty/internships")
@@ -44,6 +45,7 @@ export default function FacultyEvaluationSummaryPage() {
   async function submitMarks() {
     setMessage("");
     setError("");
+    setSaving(true);
     try {
       const res = await authJson<{ message: string }>("/api/faculty/evaluation-summary", {
         method: "POST",
@@ -52,6 +54,8 @@ export default function FacultyEvaluationSummaryPage() {
       setMessage(res.message);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to submit marks");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -74,7 +78,9 @@ export default function FacultyEvaluationSummaryPage() {
             <p className="mb-1 text-sm text-slate-700 dark:text-slate-300">Faculty Marks (0-40)</p>
             <Input type="number" min={0} max={40} value={marks} onChange={(e) => setMarks(e.target.value)} />
           </div>
-          <Button onClick={submitMarks}>Save Marks</Button>
+          <Button onClick={submitMarks} loading={saving} loadingText="Saving…">
+            Save Marks
+          </Button>
         </div>
         {message ? <p className="mt-3 text-sm text-emerald-700">{message}</p> : null}
         {error ? <p className="mt-3 text-sm text-rose-700">{error}</p> : null}
