@@ -2,59 +2,16 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import prisma from "@/utils/prisma";
-import { v2 as cloudinary } from "cloudinary";
 import { PdfReader } from "pdfreader";
 import { evaluateInternshipReportWithGrok } from "@/utils/ai/evaluateInternshipReport";
-
-function sanitizeFileName(name: string) {
-  return name.replace(/[^a-zA-Z0-9._-]/g, "_");
-}
-
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
-
-function getCloudinaryPublicIdFromUrl(fileUrl: string) {
-  try {
-    const marker = "/upload/";
-    const markerIndex = fileUrl.indexOf(marker);
-    if (markerIndex === -1) return null;
-
-    let publicPart = fileUrl.substring(markerIndex + marker.length);
-    publicPart = publicPart.replace(/^v\d+\//, "");
-    publicPart = publicPart.replace(/\.[^./]+$/, "");
-    return publicPart || null;
-  } catch {
-    return null;
-  }
-}
+import {
+  destroyCloudinaryRaw,
+  getCloudinaryPublicIdFromUrl,
+  uploadRawToCloudinary,
+} from "@/utils/cloudinaryShared";
 
 async function uploadPdfToCloudinary(buffer: Buffer, fileName: string, internshipId: string) {
-  const safeName = sanitizeFileName(fileName || "internship-report.pdf");
-  const baseName = safeName.replace(/\.[^.]+$/, "");
-  const publicId = `${Date.now()}-${baseName}`;
-
-  return await new Promise<{ secure_url: string }>((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream(
-      {
-        resource_type: "raw",
-        folder: `internship-reports/${internshipId}`,
-        public_id: publicId,
-        format: "pdf",
-      },
-      (error, result) => {
-        if (error || !result?.secure_url) {
-          reject(error ?? new Error("Cloudinary upload failed"));
-          return;
-        }
-        resolve({ secure_url: result.secure_url });
-      },
-    );
-
-    stream.end(buffer);
-  });
+  return uploadRawToCloudinary(buffer, fileName, `internship-reports/${internshipId}`, "pdf");
 }
 
 async function extractPdfText(buffer: Buffer) {
@@ -78,7 +35,6 @@ async function extractPdfText(buffer: Buffer) {
         return;
       }
 
-      // End-of-file sentinel
       if (!item) {
         flushLine();
         resolve(lines.join("\n").trim());
@@ -223,11 +179,15 @@ export async function GET(req: Request) {
   }
 }
 
+function isNonEmptyFile(file: unknown): file is File {
+  return file instanceof File && file.size > 0;
+}
+
 /**
  * POST /api/student/internship-report
  * Multipart form-data:
  * - internshipId: string
- * - file: PDF file
+ * - file?: PDF file (required on first submit; optional when replacing PDF or when updating summary only)
  * - summary?: string
  */
 export async function POST(req: Request) {
@@ -255,20 +215,11 @@ export async function POST(req: Request) {
     const formData = await req.formData();
     const internshipId = String(formData.get("internshipId") ?? "").trim();
     const summary = String(formData.get("summary") ?? "").trim();
-    const file = formData.get("file");
+    const fileField = formData.get("file");
+    const hasFile = isNonEmptyFile(fileField);
 
     if (!internshipId) {
       return NextResponse.json({ error: "internshipId is required" }, { status: 400 });
-    }
-
-    if (!(file instanceof File)) {
-      return NextResponse.json({ error: "PDF file is required" }, { status: 400 });
-    }
-
-    const isPdfMime = file.type === "application/pdf";
-    const isPdfName = file.name.toLowerCase().endsWith(".pdf");
-    if (!isPdfMime && !isPdfName) {
-      return NextResponse.json({ error: "Only PDF files are allowed" }, { status: 400 });
     }
 
     const internship = await prisma.internship.findFirst({
@@ -282,12 +233,43 @@ export async function POST(req: Request) {
       );
     }
 
-    // if (!internship.endDate || internship.endDate > new Date()) {
-    //   return NextResponse.json(
-    //     { error: "Internship report can only be submitted after internship end date" },
-    //     { status: 400 },
-    //   );
-    // }
+    const existingFinalReport = await prisma.internshipReport.findFirst({
+      where: { internshipId, type: "final" },
+      orderBy: { submittedDate: "desc" },
+    });
+
+    if (!existingFinalReport && !hasFile) {
+      return NextResponse.json(
+        { error: "A PDF file is required for the first submission" },
+        { status: 400 },
+      );
+    }
+
+    if (existingFinalReport && !hasFile) {
+      const report = await prisma.internshipReport.update({
+        where: { id: existingFinalReport.id },
+        data: {
+          summary: summary || null,
+          submittedDate: new Date(),
+        },
+      });
+
+      return NextResponse.json(
+        {
+          message: "Final report summary updated successfully",
+          report,
+          aiAssessmentGenerated: false,
+        },
+        { status: 200 },
+      );
+    }
+
+    const file = fileField as File;
+    const isPdfMime = file.type === "application/pdf";
+    const isPdfName = file.name.toLowerCase().endsWith(".pdf");
+    if (!isPdfMime && !isPdfName) {
+      return NextResponse.json({ error: "Only PDF files are allowed" }, { status: 400 });
+    }
 
     const pdfBuffer = Buffer.from(await file.arrayBuffer());
     const extractedText = await extractPdfText(pdfBuffer);
@@ -305,19 +287,12 @@ export async function POST(req: Request) {
     const uploaded = await uploadPdfToCloudinary(pdfBuffer, file.name, internshipId);
     const publicFileUrl = uploaded.secure_url;
 
-    const existingFinalReport = await prisma.internshipReport.findFirst({
-      where: { internshipId, type: "final" },
-      orderBy: { submittedDate: "desc" },
-    });
-
     let report;
 
     if (existingFinalReport) {
       const oldPublicId = getCloudinaryPublicIdFromUrl(existingFinalReport.fileUrl ?? "");
       if (oldPublicId) {
-        await cloudinary.uploader
-          .destroy(oldPublicId, { resource_type: "raw", invalidate: true })
-          .catch(() => undefined);
+        await destroyCloudinaryRaw(oldPublicId);
       }
 
       report = await prisma.internshipReport.update({
@@ -398,11 +373,13 @@ ${summary}`.trim();
 
     return NextResponse.json(
       {
-        message: "Internship final report submitted successfully",
+        message: existingFinalReport
+          ? "Final internship report updated successfully"
+          : "Internship final report submitted successfully",
         report,
         aiAssessmentGenerated: Boolean(aiAssessment),
       },
-      { status: 201 },
+      { status: existingFinalReport ? 200 : 201 },
     );
   } catch (err) {
     console.error("Submit internship final report error:", err);

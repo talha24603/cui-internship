@@ -10,6 +10,8 @@ import { authJson } from "@/utils/authClient";
 import { PageEmpty, PageError } from "@/components/shared/page-state";
 import type { AdminPagination } from "@/utils/adminPagination";
 import { AdminPaginationBar } from "@/components/admin/AdminPaginationBar";
+import { AdminRegNoSearch } from "@/components/admin/AdminRegNoSearch";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 
 type AppexA = {
   id: string;
@@ -45,6 +47,12 @@ export default function AdminAppexAPage() {
   const [selected, setSelected] = useState<AppexA | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [pendingAction, setPendingAction] = useState<"approved" | "rejected" | null>(null);
+  const [regNoInput, setRegNoInput] = useState("");
+  const debouncedRegNo = useDebouncedValue(regNoInput, 400);
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedRegNo]);
 
   async function load() {
     setLoading(true);
@@ -52,6 +60,8 @@ export default function AdminAppexAPage() {
     try {
       const params = new URLSearchParams();
       if (status !== "all") params.set("status", status.toLowerCase());
+      const reg = debouncedRegNo.trim();
+      if (reg) params.set("regNo", reg);
       params.set("page", String(page));
       params.set("pageSize", String(PAGE_SIZE));
       const qs = params.toString();
@@ -72,7 +82,7 @@ export default function AdminAppexAPage() {
   useEffect(() => {
     setSuccess("");
     void load();
-  }, [status, page]);
+  }, [status, page, debouncedRegNo]);
 
   async function update(appexAId: string, nextStatus: "approved" | "rejected") {
     setError("");
@@ -96,19 +106,22 @@ export default function AdminAppexAPage() {
 
   return (
     <AdminShell title="AppEx A" description="Approve or reject AppEx A forms and sync internship dates.">
-      <div className="mb-4 max-w-xs">
-        <Select
-          value={status}
-          onChange={(e) => {
-            setStatus(e.target.value);
-            setPage(1);
-          }}
-        >
-          <option value="PENDING">Pending</option>
-          <option value="APPROVED">Approved</option>
-          <option value="REJECTED">Rejected</option>
-          <option value="all">All</option>
-        </Select>
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+        <div className="max-w-xs">
+          <Select
+            value={status}
+            onChange={(e) => {
+              setStatus(e.target.value);
+              setPage(1);
+            }}
+          >
+            <option value="PENDING">Pending</option>
+            <option value="APPROVED">Approved</option>
+            <option value="REJECTED">Rejected</option>
+            <option value="all">All</option>
+          </Select>
+        </div>
+        <AdminRegNoSearch id="admin-appex-a-reg-no" value={regNoInput} onChange={setRegNoInput} />
       </div>
       {error ? <PageError message={error} className="mb-3" /> : null}
       {success ? (

@@ -70,11 +70,19 @@ export async function GET(req: Request) {
           { studentVerified: null },
         ];
       } else if (status === "FACULTY_VERIFIED") {
+        // Match calculateStatus: student must not be true yet (null counts as "not verified").
+        // `{ not: true }` excludes NULL in SQL, so use explicit null | false.
         whereClause.facultyVerified = true;
-        whereClause.studentVerified = { not: true };
+        whereClause.OR = [
+          { studentVerified: null },
+          { studentVerified: false },
+        ];
       } else if (status === "STUDENT_VERIFIED") {
         whereClause.studentVerified = true;
-        whereClause.facultyVerified = { not: true };
+        whereClause.OR = [
+          { facultyVerified: null },
+          { facultyVerified: false },
+        ];
       } else if (status === "BOTH_VERIFIED") {
         whereClause.facultyVerified = true;
         whereClause.studentVerified = true;

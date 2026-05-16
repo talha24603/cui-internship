@@ -9,8 +9,29 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
 import { authJson } from "@/utils/authClient";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 
-type Internship = { id: string; student?: { name: string; regNo?: string | null } | null };
+type Internship = {
+  id: string;
+  endDate?: string | null;
+  student?: { name: string; regNo?: string | null } | null;
+};
+
+function buildFacultyInternshipsUrl(endDateFrom: string, endDateTo: string) {
+  const p = new URLSearchParams({ status: "approved" });
+  const ef = endDateFrom.trim();
+  const et = endDateTo.trim();
+  if (ef) p.set("endDateFrom", ef);
+  if (et) p.set("endDateTo", et);
+  return `/api/faculty/internships?${p.toString()}`;
+}
+
+function internshipOptionLabel(item: Internship) {
+  const name = item.student?.name ?? "Unknown";
+  const reg = item.student?.regNo ?? "N/A";
+  const end = item.endDate ? item.endDate.slice(0, 10) : "—";
+  return `${name} (${reg}) — ends ${end}`;
+}
 
 const fields = [
   { key: "platformActivityEngagement", label: "Platform Activity & Engagement" },
@@ -31,15 +52,23 @@ export default function FacultyEvaluationFormPage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [endDateFrom, setEndDateFrom] = useState("");
+  const [endDateTo, setEndDateTo] = useState("");
+  const debouncedEndFrom = useDebouncedValue(endDateFrom, 400);
+  const debouncedEndTo = useDebouncedValue(endDateTo, 400);
 
   useEffect(() => {
-    authJson<{ data: Internship[] }>("/api/faculty/internships?status=approved")
+    authJson<{ data: Internship[] }>(buildFacultyInternshipsUrl(debouncedEndFrom, debouncedEndTo))
       .then((res) => {
-        setInternships(res.data ?? []);
-        if (res.data?.[0]?.id) setInternshipId(res.data[0].id);
+        const list = res.data ?? [];
+        setInternships(list);
+        setInternshipId((prev) => {
+          if (prev && list.some((i) => i.id === prev)) return prev;
+          return list[0]?.id ?? "";
+        });
       })
       .catch((err) => setError(err instanceof Error ? err.message : "Unable to load internships"));
-  }, []);
+  }, [debouncedEndFrom, debouncedEndTo]);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -63,12 +92,20 @@ export default function FacultyEvaluationFormPage() {
     <FacultyShell title="Evaluation Form" description="Submit faculty evaluation criteria for supervised students.">
       <Card>
         <form onSubmit={onSubmit} className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <FormField label="Filter: internship ends on or after" hint="Optional (YYYY-MM-DD)">
+              <Input type="date" value={endDateFrom} onChange={(e) => setEndDateFrom(e.target.value)} />
+            </FormField>
+            <FormField label="Filter: internship ends on or before" hint="Optional (YYYY-MM-DD)">
+              <Input type="date" value={endDateTo} onChange={(e) => setEndDateTo(e.target.value)} />
+            </FormField>
+          </div>
           <FormField label="Internship">
             <Select value={internshipId} onChange={(e) => setInternshipId(e.target.value)}>
               <option value="">Select internship</option>
               {internships.map((item) => (
                 <option key={item.id} value={item.id}>
-                  {item.student?.name ?? "Unknown"} ({item.student?.regNo ?? "N/A"})
+                  {internshipOptionLabel(item)}
                 </option>
               ))}
             </Select>

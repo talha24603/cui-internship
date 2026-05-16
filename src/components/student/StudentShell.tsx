@@ -22,6 +22,7 @@ import {
   LayoutDashboard,
   MessageCircleWarning,
   Network,
+  ScrollText,
 } from "lucide-react";
 
 const navItems = [
@@ -32,6 +33,7 @@ const navItems = [
   { href: "/student/appex-b-verification", label: "B Verification", icon: ClipboardCheck },
   { href: "/student/appex-c", label: "AppEx C", icon: BookOpen },
   { href: "/student/weekly-logs", label: "Weekly Logs", icon: CalendarCheck2 },
+  { href: "/student/reference-letter", label: "Reference Letter", icon: ScrollText },
   { href: "/student/internship-report", label: "Final Report", icon: FileCheck2 },
   { href: "/student/final-result", label: "Final Result", icon: FileBadge2 },
   { href: "/student/complaints", label: "Complaints", icon: MessageCircleWarning },
@@ -94,7 +96,7 @@ export default function StudentShell({ title, description, children }: StudentSh
         </button>
         <ThemeToggle />
       </div>
-      <div className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-[270px_1fr]">
+      <div className="mx-auto grid max-w-7xl items-start gap-6 lg:grid-cols-[270px_1fr]">
         <motion.aside
           initial={{ x: -16, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}

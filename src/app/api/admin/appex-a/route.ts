@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/utils/prisma";
 import { buildAdminPagination, parseAdminPagination } from "@/utils/adminPagination";
-import { InternshipApprovalStatus, InternshipStatus, InternshipType } from "@prisma/client";
+import { InternshipApprovalStatus, InternshipStatus, InternshipType, Prisma } from "@prisma/client";
 
 function appexAAdminQueryStatus(raw: string | null): InternshipApprovalStatus | undefined {
   if (!raw) return undefined;
@@ -44,12 +44,18 @@ export async function GET(req: Request) {
 
     const url = new URL(req.url);
     const filterStatus = appexAAdminQueryStatus(url.searchParams.get("status"));
+    const regNoRaw = url.searchParams.get("regNo")?.trim() ?? "";
     const { skip, take, page, pageSize } = parseAdminPagination(url.searchParams);
 
-    const where: { status?: InternshipApprovalStatus } = {};
+    const where: Prisma.InternshipApprovalWhereInput = {};
 
     if (filterStatus) {
       where.status = filterStatus;
+    }
+    if (regNoRaw) {
+      where.student = {
+        regNo: { contains: regNoRaw, mode: "insensitive" },
+      };
     }
 
     const [appexASubmissions, total] = await Promise.all([

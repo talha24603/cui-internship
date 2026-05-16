@@ -38,7 +38,15 @@ type InternshipDetails = {
   id: string;
   type: string;
   status: string;
-  student?: { name: string; regNo?: string | null; email: string } | null;
+  certificateUrl?: string | null;
+  certificateFileName?: string | null;
+  certificateSubmittedAt?: string | null;
+  student?: {
+    id: string;
+    name: string;
+    regNo?: string | null;
+    email: string;
+  } | null;
   faculty?: { name: string; email: string } | null;
   site?: { name: string; company?: { name: string } | null } | null;
   weeklyLogs: WeeklyLog[];
@@ -122,6 +130,29 @@ export default function AdminInternshipDetailPage() {
               ))}
               {data.weeklyLogs.length === 0 ? <p className="text-sm text-slate-600">No weekly logs submitted yet.</p> : null}
             </div>
+          </Card>
+
+          <Card>
+            <h3 className="mb-2 text-sm font-semibold">Internship certificate (student)</h3>
+            {!data.certificateUrl ? (
+              <p className="text-sm text-slate-600">The student has not uploaded a completion certificate yet.</p>
+            ) : (
+              <div className="space-y-2 text-sm">
+                <p className="text-slate-800 dark:text-slate-200">
+                  File: {data.certificateFileName || "certificate"}
+                </p>
+                {data.certificateSubmittedAt ? (
+                  <p className="text-xs text-slate-500">
+                    Submitted {new Date(data.certificateSubmittedAt).toLocaleString()}
+                  </p>
+                ) : null}
+                <Button asChild variant="outline" size="sm">
+                  <a href={data.certificateUrl} target="_blank" rel="noreferrer">
+                    View certificate
+                  </a>
+                </Button>
+              </div>
+            )}
           </Card>
 
           <Card>

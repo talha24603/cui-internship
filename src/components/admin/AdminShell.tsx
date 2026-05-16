@@ -15,6 +15,7 @@ import {
   PlusCircle,
   ShieldCheck,
   UserCog,
+  ScrollText,
   UsersRound,
 } from "lucide-react";
 import ThemeToggle from "@/components/theme-toggle";
@@ -30,6 +31,7 @@ type AdminShellProps = {
 const navItems = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
   { href: "/admin/internships", label: "Internships", icon: UsersRound },
+  { href: "/admin/reference-letter", label: "Reference Letter", icon: ScrollText },
   { href: "/admin/announcements", label: "Announcements", icon: BellRing },
   { href: "/admin/company-requests", label: "Company Requests", icon: Building2 },
   { href: "/admin/add-company", label: "Add Company", icon: PlusCircle },

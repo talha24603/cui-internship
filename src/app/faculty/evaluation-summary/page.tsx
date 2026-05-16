@@ -6,9 +6,32 @@ import { Card, StatusBadge } from "@/components/student/StudentUi";
 import { Select } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { FormField } from "@/components/ui/form-field";
 import { authJson } from "@/utils/authClient";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 
-type Internship = { id: string; student?: { name: string; regNo?: string | null } | null };
+type Internship = {
+  id: string;
+  endDate?: string | null;
+  student?: { name: string; regNo?: string | null } | null;
+};
+
+function buildFacultyInternshipsUrl(endDateFrom: string, endDateTo: string) {
+  const p = new URLSearchParams();
+  const ef = endDateFrom.trim();
+  const et = endDateTo.trim();
+  if (ef) p.set("endDateFrom", ef);
+  if (et) p.set("endDateTo", et);
+  const qs = p.toString();
+  return qs ? `/api/faculty/internships?${qs}` : "/api/faculty/internships";
+}
+
+function internshipOptionLabel(item: Internship) {
+  const name = item.student?.name ?? "Unknown";
+  const reg = item.student?.regNo ?? "N/A";
+  const end = item.endDate ? item.endDate.slice(0, 10) : "—";
+  return `${name} (${reg}) — ends ${end}`;
+}
 type Summary = {
   facultyMarks: number | null;
   siteMarks: number | null;
@@ -25,15 +48,23 @@ export default function FacultyEvaluationSummaryPage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [endDateFrom, setEndDateFrom] = useState("");
+  const [endDateTo, setEndDateTo] = useState("");
+  const debouncedEndFrom = useDebouncedValue(endDateFrom, 400);
+  const debouncedEndTo = useDebouncedValue(endDateTo, 400);
 
   useEffect(() => {
-    authJson<{ data: Internship[] }>("/api/faculty/internships")
+    authJson<{ data: Internship[] }>(buildFacultyInternshipsUrl(debouncedEndFrom, debouncedEndTo))
       .then((res) => {
-        setInternships(res.data ?? []);
-        if (res.data?.[0]?.id) setInternshipId(res.data[0].id);
+        const list = res.data ?? [];
+        setInternships(list);
+        setInternshipId((prev) => {
+          if (prev && list.some((i) => i.id === prev)) return prev;
+          return list[0]?.id ?? "";
+        });
       })
       .catch((err) => setError(err instanceof Error ? err.message : "Unable to load internships"));
-  }, []);
+  }, [debouncedEndFrom, debouncedEndTo]);
 
   useEffect(() => {
     if (!internshipId) return;
@@ -62,6 +93,14 @@ export default function FacultyEvaluationSummaryPage() {
   return (
     <FacultyShell title="Evaluation Summary" description="Submit faculty marks and monitor total outcome.">
       <Card>
+        <div className="mb-4 grid gap-3 sm:grid-cols-2">
+          <FormField label="Filter: internship ends on or after" hint="Optional (YYYY-MM-DD)">
+            <Input type="date" value={endDateFrom} onChange={(e) => setEndDateFrom(e.target.value)} />
+          </FormField>
+          <FormField label="Filter: internship ends on or before" hint="Optional (YYYY-MM-DD)">
+            <Input type="date" value={endDateTo} onChange={(e) => setEndDateTo(e.target.value)} />
+          </FormField>
+        </div>
         <div className="grid gap-3 sm:grid-cols-[1fr_180px_180px] sm:items-end">
           <div>
             <p className="mb-1 text-sm text-slate-700 dark:text-slate-300">Internship</p>
@@ -69,7 +108,7 @@ export default function FacultyEvaluationSummaryPage() {
               <option value="">Select internship</option>
               {internships.map((item) => (
                 <option key={item.id} value={item.id}>
-                  {item.student?.name ?? "Unknown"} ({item.student?.regNo ?? "N/A"})
+                  {internshipOptionLabel(item)}
                 </option>
               ))}
             </Select>

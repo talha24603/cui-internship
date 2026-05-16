@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { InternshipAssignmentStatus } from "@prisma/client";
+import { AdminApprovalStatus, InternshipAssignmentStatus, Prisma } from "@prisma/client";
 import prisma from "@/utils/prisma";
 import { buildAdminPagination, parseAdminPagination } from "@/utils/adminPagination";
 
@@ -40,6 +40,7 @@ export async function GET(req: Request) {
     const id = url.searchParams.get("id"); // Optional ID to get specific appex-b
     const status = url.searchParams.get("status"); // Optional status filter
     const adminApprovalStatus = url.searchParams.get("adminApprovalStatus"); // Optional admin approval filter
+    const regNoRaw = url.searchParams.get("regNo")?.trim() ?? "";
 
     // If ID is provided, return specific appex-b
     if (id) {
@@ -108,14 +109,26 @@ export async function GET(req: Request) {
     }
 
     // Otherwise, return all appex-b submissions
-    const where: any = {};
+    const where: Prisma.InternshipAssignmentWhereInput = {};
 
     if (status) {
-      where.status = status;
+      const allowedStatus = Object.values(InternshipAssignmentStatus) as string[];
+      if (allowedStatus.includes(status)) {
+        where.status = status as InternshipAssignmentStatus;
+      }
     }
 
     if (adminApprovalStatus) {
-      where.adminApprovalStatus = adminApprovalStatus;
+      const allowed = Object.values(AdminApprovalStatus) as string[];
+      if (allowed.includes(adminApprovalStatus)) {
+        where.adminApprovalStatus = adminApprovalStatus as AdminApprovalStatus;
+      }
+    }
+
+    if (regNoRaw) {
+      where.student = {
+        regNo: { contains: regNoRaw, mode: "insensitive" },
+      };
     }
 
     const { skip, take, page, pageSize } = parseAdminPagination(url.searchParams);

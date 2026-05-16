@@ -102,6 +102,15 @@ model User {
   complaintsHandled      Complaint[] @relation("ComplaintHandled")
 }
 
+/// One shared Word template for all students; admin replaces the file in place.
+model UniversityReferenceLetter {
+  id        String   @id
+  fileUrl   String
+  fileName  String?
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+}
+
 model RefreshToken {
   id        String   @id @default(uuid())
   token     String   @unique
@@ -185,6 +194,11 @@ model Internship {
   startDate DateTime?
   endDate   DateTime?
   status    InternshipStatus
+
+  /// Completion certificate from student (PDF/image); Cloudinary URL.
+  certificateUrl         String?
+  certificateFileName    String?
+  certificateSubmittedAt DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

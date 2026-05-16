@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import prisma from "@/utils/prisma";
-import { InternshipStatus } from "@prisma/client";
+import { InternshipStatus, Prisma } from "@prisma/client";
+import { parseEndDateRangeFromSearchParams } from "@/utils/internshipEndDateQuery";
 
 // GET /api/faculty/internships
 // - FACULTY: returns internships where internship.facultyId === current userId
 // - ADMIN: returns internships connected to any faculty by default, or a specific faculty via ?facultyId=
+// Query: status (all|pending|approved|completed|rejected), facultyId (admin), endDateFrom/endDateTo (YYYY-MM-DD)
 export async function GET(req: Request) {
   try {
     const userId = req.headers.get("x-user-id");
@@ -28,10 +30,12 @@ export async function GET(req: Request) {
     const statusParam = (url.searchParams.get("status") ?? "all").trim();
     const facultyIdParam = (url.searchParams.get("facultyId") ?? "").trim();
 
-    const where: {
-      facultyId?: string | { not: null };
-      status?: InternshipStatus;
-    } = {};
+    const endRange = parseEndDateRangeFromSearchParams(url.searchParams);
+    if (!endRange.ok) {
+      return NextResponse.json({ error: endRange.message }, { status: 400 });
+    }
+
+    const where: Prisma.InternshipWhereInput = {};
 
     if (role === "FACULTY") {
       where.facultyId = userId;
@@ -53,6 +57,10 @@ export async function GET(req: Request) {
         );
       }
       where.status = normalized as InternshipStatus;
+    }
+
+    if (endRange.filter) {
+      where.endDate = endRange.filter;
     }
 
     const internships = await prisma.internship.findMany({

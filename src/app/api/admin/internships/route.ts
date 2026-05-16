@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { InternshipStatus } from "@prisma/client";
+import { InternshipStatus, Prisma } from "@prisma/client";
 import prisma from "@/utils/prisma";
 import { buildAdminPagination, parseAdminPagination } from "@/utils/adminPagination";
+import { parseEndDateRangeFromSearchParams } from "@/utils/internshipEndDateQuery";
 
 function parseInternshipListStatus(raw: string | null): InternshipStatus | undefined {
   if (!raw) return undefined;
@@ -40,6 +41,8 @@ function validateAdmin(req: Request) {
  * GET /api/admin/internships
  * Query: page, pageSize (or limit). Max pageSize 100.
  * Optional: status=PENDING|APPROVED|COMPLETED|REJECTED
+ * Optional: regNo — case-insensitive substring match on student.regNo
+ * Optional: endDateFrom, endDateTo — YYYY-MM-DD, filter internship.endDate (inclusive range, UTC day bounds)
  */
 export async function GET(req: Request) {
   const auth = validateAdmin(req);
@@ -51,7 +54,23 @@ export async function GET(req: Request) {
     const url = new URL(req.url);
     const { skip, take, page, pageSize } = parseAdminPagination(url.searchParams);
     const statusFilter = parseInternshipListStatus(url.searchParams.get("status"));
-    const where = statusFilter ? { status: statusFilter } : {};
+    const regNoRaw = url.searchParams.get("regNo")?.trim() ?? "";
+
+    const endRange = parseEndDateRangeFromSearchParams(url.searchParams);
+    if (!endRange.ok) {
+      return NextResponse.json({ error: endRange.message }, { status: 400 });
+    }
+
+    const where: Prisma.InternshipWhereInput = {};
+    if (statusFilter) where.status = statusFilter;
+    if (regNoRaw) {
+      where.student = {
+        regNo: { contains: regNoRaw, mode: "insensitive" },
+      };
+    }
+    if (endRange.filter) {
+      where.endDate = endRange.filter;
+    }
 
     const [internships, total] = await Promise.all([
       prisma.internship.findMany({
