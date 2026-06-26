@@ -110,9 +110,9 @@ The final internship marks are calculated using:
 
 ## Frontend
 
-- Angular
+- Next.js
 - TypeScript
-- Angular Material
+- Shadcn/ui
 - RxJS
 
 ## Backend
@@ -136,7 +136,7 @@ The final internship marks are calculated using:
 
 ```
                    +----------------------+
-                   |      Angular UI      |
+                   |   Next.js Frontend   |
                    +----------+-----------+
                               |
                               |
@@ -163,7 +163,7 @@ Internship-Management-System/
 │
 ├── frontend/
 │   ├── src/
-│   ├── angular.json
+│   ├── app/
 │   └── package.json
 │
 ├── backend/
